@@ -1,4 +1,4 @@
-<img width="312" height="488" alt="020632w7715q900nv097vu" src="https://github.com/user-attachments/assets/b4291e9b-3188-4258-852c-078f289ea0fc" /># cqfnsh
+# cqfnsh
 我的飞牛我做主，飞牛各项个性化定制
 已更新至v1.0版本
 1，能独立修改各个选项
@@ -21,6 +21,7 @@ bash -c "$(curl -fsSL https://sh.on79.cfd/cqfnlogo.sh)"
 bash -c "$(curl -fsSL https://pub-1a0809376f7b4ab2a92a866aefb1c4ba.r2.dev/cqfnlogo.sh)"
 
 效果如图：
+
 <img width="312" height="488" alt="020632w7715q900nv097vu" src="https://github.com/user-attachments/assets/6fc22e75-4f01-4c7b-981b-2e93664b6970" />
 ![235141nouooggvvfovfovl](https://github.com/user-attachments/assets/d5a9b85b-bb62-47a0-86a4-a39c7bf6a80f)
 ![235141o888wd2l87kw6fz2](https://github.com/user-attachments/assets/e31083e8-4067-43fd-a8fa-c4277236c0f3)
