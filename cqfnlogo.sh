@@ -567,6 +567,17 @@ apply_eva_theme() {
     apply_theme "$login_logo" "$login_bg" "$device_logo"
     echo -e "${GREEN}✓ 新世纪福音战士主题应用完成${NC}"
 }
+# 应用鬼灭之刃主题
+apply_guimie_theme() {
+    echo -e "\n${YELLOW}=== 应用鬼灭之刃主题 ===${NC}"
+    
+    local login_logo="https://img.on79.cfd/file/1759992697671_98c94b81f3ca7ac89f172c83897472ef5ef67989.png"
+    local login_bg="https://img.on79.cfd/file/1759992283415_068e9b2f65baeb9eda58f789bbaa4b32.webp"
+    local device_logo="https://img.on79.cfd/file/1759992276741_98c94b81f3ca7ac89f172c83897472ef5ef67989.png"
+    
+    apply_theme "$login_logo" "$login_bg" "$device_logo"
+    echo -e "${GREEN}✓ 鬼灭之刃主题应用完成${NC}"
+}
 
 # 应用主题的通用函数
 # 参数: login_logo, login_bg, device_logo
@@ -738,6 +749,7 @@ show_preset_menu() {
     echo -e "4. 海贼王"
     echo -e "5. JOJO的奇妙冒险"
     echo -e "6. 新世纪福音战士"
+    echo -e "7. 鬼灭之刃"
     echo -e "0. 返回主菜单"
     echo -e "${YELLOW}==================${NC}"
 }
@@ -792,7 +804,7 @@ show_persistence_menu() {
 
 # 主菜单
 show_menu() {
-    echo -e "\n${YELLOW}==== 肥牛定制化脚本v1.12 by 米恋泥 ====${NC}"
+    echo -e "\n${YELLOW}==== 肥牛定制化脚本v1.13 by 米恋泥 ====${NC}"
     echo -e "1. 选择预设主题（小白推荐）"
     echo -e "2. 修改登录界面背景图片"
     echo -e "3. 修改设备信息logo图片"
@@ -890,6 +902,7 @@ main() {
                         4) apply_haizeiwang_theme; break ;;
                         5) apply_jojo_theme; break ;;
                         6) apply_eva_theme; break ;;
+                        7) apply_guimie_theme; break ;;
                         0) break ;;
                         *) echo -e "${RED}无效选择，请重新输入${NC}" ;;
                     esac
