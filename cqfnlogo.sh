@@ -786,7 +786,7 @@ modify_movie_bg() {
 
 # 预设主题菜单
 show_preset_menu() {
-    show_header "预设主题菜单"
+    show_header "选择主题菜单"
     echo -e "1. 高达00"
     echo -e "2. 初音未来"
     echo -e "3. 钢之炼金术师"
@@ -852,24 +852,23 @@ show_separator() {
 }
 
 show_menu() {
-    # 清除屏幕并显示标题
-    clear
+
     echo -e "\n${DARK_BLUE}╔═══════════════════════════════════════════════╗${NC}"
     echo -e "${DARK_BLUE}║${TECH_CYAN}                                               ${DARK_BLUE}║${NC}"
-    echo -e "${DARK_BLUE}║${NEON_GREEN}         ${BOLD}${BLINK}肥牛定制化脚本v1.15 by 米恋泥${NO_EFFECT}         ${DARK_BLUE}║${NC}"
+    echo -e "${DARK_BLUE}║${NEON_GREEN}         ${BOLD}${BLINK}肥牛定制化脚本v1.16 by 米恋泥${NO_EFFECT}         ${DARK_BLUE}║${NC}"
     echo -e "${DARK_BLUE}║${TECH_CYAN}                                               ${DARK_BLUE}║${NC}"
     echo -e "${DARK_BLUE}╚═══════════════════════════════════════════════╝${NC}"
     
     # 主菜单选项 - 每个选项使用独特颜色
-    echo -e "${TECH_GREEN} 1.${WHITE} 选择预设主题（小白推荐）${NC}"
-    echo -e "${TECH_BLUE} 2.${WHITE} 修改登录界面背景图片${NC}"
-    echo -e "${TECH_PURPLE} 3.${WHITE} 修改设备信息logo图片${NC}"
-    echo -e "${TECH_CYAN} 4.${WHITE} 修改登录界面logo图片${NC}"
-    echo -e "${TECH_YELLOW} 5.${WHITE} 修改飞牛网页标题${NC}"
-    echo -e "${TECH_RED} 6.${WHITE} 修改登录框透明度${NC}"
-    echo -e "${TECH_ORANGE} 7.${WHITE} 修改飞牛影视界面${NC}"
-    echo -e "${TECH_PINK} 8.${WHITE} 选择是否保存脚本设置${NC}"
-    echo -e "${DARK_BLUE} 0.${WHITE} 退出${NC}"
+    echo -e "${WHITE} 1. 选择预设主题（小白推荐）${NC}"
+    echo -e "${TECH_PINK} 2. 修改登录界面背景图片${NC}"
+    echo -e "${TECH_RED} 3. 修改设备信息logo图片${NC}"
+    echo -e "${TECH_ORANGE} 4. 修改登录界面logo图片${NC}"
+    echo -e "${TECH_YELLOW} 5. 修改飞牛网页标题${NC}"
+    echo -e "${TECH_BLUE} 6. 修改登录框透明度${NC}"
+    echo -e "${TECH_CYAN} 7. 修改飞牛影视界面${NC}"
+    echo -e "${TECH_GREEN} 8. 选择是否保存脚本设置${NC}"
+    echo -e "${LIGHT_GRAY} 0. 退出${NC}"
     
     show_separator
     echo -e "${TECH_CYAN}请输入选项 [0-8]: ${NC}\c"
@@ -1023,6 +1022,7 @@ clear
                 done
                 ;;
             0)  # 退出
+                echo -e "${TECH_YELLOW}▲ 脚本已退出，欢迎再次使用~·${NC}\n"
                 exit 0 ;;
             *) 
                 echo -e "${NEON_RED}✗ 无效选择，请重新输入${NC}" ;;
