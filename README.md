@@ -49,11 +49,17 @@
 
 直接在SSH终端执行以下代码：
 
+cloudflare:
+
 bash -c "$(curl -fsSL https://sh.on79.cfd/cqfnlogo.sh)"
 
-备用：
+github：
 
-bash -c "$(curl -fsSL https://pub-1a0809376f7b4ab2a92a866aefb1c4ba.r2.dev/cqfnlogo.sh)"
+bash -c "$(curl -fsSL https://github.com/IMGZCQ/cqfnsh/blob/main/cqfnlogo.sh)"
+
+github加速：
+
+bash -c "$(curl -fsSL https://ghfast.top/https://github.com/IMGZCQ/cqfnsh/blob/main/cqfnlogo.sh)"
 
 效果如图：
 
