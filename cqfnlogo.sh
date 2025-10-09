@@ -14,10 +14,38 @@ readonly YELLOW='\033[1;33m'
 readonly CYAN='\033[0;36m'
 readonly MAGENTA='\033[0;35m'  # 电子洋红
 readonly ORANGE='\033[0;33m'   # 电子橙色
-readonly NC='\033[0m'
-readonly BLINK='\033[5m'       # 闪烁效果
-readonly NOBLINK='\033[25m'    # 关闭闪烁
 
+# 霓虹色调系统
+readonly NEON_RED='\033[0;91m'        # 霓虹红
+readonly NEON_GREEN='\033[0;92m'      # 霓虹绿
+readonly NEON_BLUE='\033[0;94m'       # 霓虹蓝
+readonly NEON_CYAN='\033[0;96m'       # 霓虹青
+readonly NEON_PURPLE='\033[0;95m'     # 霓虹紫
+readonly NEON_YELLOW='\033[0;93m'     # 霓虹黄
+
+# 科技感色调系统
+readonly TECH_RED='\033[0;91m'         # 科技红
+readonly TECH_GREEN='\033[0;92m'       # 科技绿
+readonly TECH_BLUE='\033[0;94m'        # 科技蓝
+readonly TECH_CYAN='\033[0;96m'        # 科技青
+readonly TECH_PURPLE='\033[0;95m'      # 科技紫
+readonly TECH_YELLOW='\033[0;93m'      # 科技黄
+readonly TECH_ORANGE='\033[38;5;208m'  # 科技橙 (256色)
+readonly TECH_PINK='\033[38;5;213m'    # 科技粉 (256色)
+
+# 基础色调
+readonly DARK_BLUE='\033[0;34m'       # 深蓝背景色
+readonly LIGHT_GRAY='\033[0;37m'      # 浅灰文本
+readonly WHITE='\033[1;37m'           # 亮白文本
+readonly NC='\033[0m'                 # 重置颜色
+
+# 特效定义
+readonly BLINK='\033[5m'               # 闪烁效果
+readonly NOBLINK='\033[25m'            # 关闭闪烁
+readonly BOLD='\033[1m'                # 加粗
+readonly UNDERLINE='\033[4m'           # 下划线
+readonly REVERSE='\033[7m'             # 反色
+readonly NO_EFFECT='\033[21;24;25;27m' # 关闭所有特效
 # 路径定义
 readonly TARGET_DIR="${1:-/usr/trim/www/assets}"
 readonly MOVIE_DIR="${1:-/usr/local/apps/@appcenter/trim.media/static/assets}"
@@ -69,8 +97,8 @@ show_separator() {
 # 检查是否为root用户
 check_root() {
     if [ "$(id -u)" -ne 0 ]; then
-        echo -e "${RED}✗ 错误：此脚本需要root权限才能运行${NC}" >&2
-        echo -e "${RED}✗ 请使用 sudo -i 命令或以 root 用户身份执行。${NC}" >&2
+        echo -e "${NEON_RED}✗ 错误：此脚本需要root权限才能运行${NC}" >&2
+        echo -e "${NEON_RED}✗ 请使用 sudo -i 命令或以 root 用户身份执行。${NC}" >&2
         exit 1
     fi
     echo -e "${GREEN}✓ 已确认root权限，开始执行脚本...${NC}"
@@ -92,7 +120,7 @@ check_resource_dir() {
         echo -e "${YELLOW}⚠️ 资源目录不存在，正在创建: $dir_path${NC}"
         mkdir -p "$dir_path" && chmod 755 "$dir_path" && \
         echo -e "${GREEN}✓ 资源目录创建成功${NC}" || \
-        echo -e "${RED}✗ 资源目录创建失败${NC}"
+        echo -e "${NEON_RED}✗ 资源目录创建失败${NC}"
     fi
 }
 
@@ -102,7 +130,7 @@ init_backup_dir() {
         echo -e "${YELLOW}⚠️ 备份目录不存在，正在创建: $BACKUP_DIR${NC}"
         mkdir -p "$BACKUP_DIR" && chmod 755 "$BACKUP_DIR" && \
         echo -e "${GREEN}✓ 备份目录创建成功${NC}" || \
-        echo -e "${RED}✗ 备份目录创建失败${NC}"
+        echo -e "${NEON_RED}✗ 备份目录创建失败${NC}"
     fi
 }
 
@@ -111,7 +139,7 @@ backup_modified_file() {
     local file_path="$1"
     
     if [ ! -f "$file_path" ]; then
-        echo -e "${RED}✗ 要备份的文件不存在: $file_path${NC}"
+        echo -e "${NEON_RED}✗ 要备份的文件不存在: $file_path${NC}"
         return 1
     fi
 
@@ -127,7 +155,7 @@ backup_modified_file() {
         echo -e "${GREEN}✓ 文件已备份到: ${NC}$backup_file"
         echo -e "${GREEN}✓ 原始路径记录到: ${NC}$record_file"
     else
-        echo -e "${RED}✗ 文件备份失败: $file_path${NC}"
+        echo -e "${NEON_RED}✗ 文件备份失败: $file_path${NC}"
     fi
 }
 
@@ -149,7 +177,7 @@ safe_replace() {
         # 备份修改后的文件
         backup_modified_file "$file_path"
     else
-        echo -e "${RED}✗ 更新失败: ${NC}$file_path"
+        echo -e "${NEON_RED}✗ 更新失败: ${NC}$file_path"
     fi
 }
 
@@ -170,14 +198,14 @@ find_largest_file() {
     local pattern="$2"
     
     if [ ! -d "$dir" ]; then
-        echo -e "${RED}✗ 目录不存在: $dir${NC}"
+        echo -e "${NEON_RED}✗ 目录不存在: $dir${NC}"
         return 1
     fi
     
     local largest_file=$(find "$dir" -type f -name "$pattern" -exec du -ah {} + 2>/dev/null | sort -rh | head -n1 | awk '{print $2}')
     
     if [ -z "$largest_file" ] || [ ! -f "$largest_file" ]; then
-        echo -e "${RED}✗ 未找到符合条件的$pattern文件${NC}"
+        echo -e "${NEON_RED}✗ 未找到符合条件的$pattern文件${NC}"
         return 1
     fi
     
@@ -191,7 +219,7 @@ find_login_form_js() {
     local login_file=$(find "$TARGET_DIR" -type f -name "*.js" -iname "$LOGIN_FORM_JS_PATTERN" | head -n1)
     
     if [ -z "$login_file" ] || [ ! -f "$login_file" ]; then
-        echo -e "${RED}✗ 未找到登录表单JS文件${NC}"
+        echo -e "${NEON_RED}✗ 未找到登录表单JS文件${NC}"
         return 1
     fi
     
@@ -277,7 +305,7 @@ remove_persistence() {
         if [ $? -eq 0 ]; then
             echo -e "${GREEN}✓ 备份目录文件已清空${NC}"
         else
-            echo -e "${RED}✗ 备份目录文件删除失败${NC}"
+            echo -e "${NEON_RED}✗ 备份目录文件删除失败${NC}"
         fi
     fi
     
@@ -305,7 +333,7 @@ modify_login_logo() {
                 elif validate_url "$value"; then
                     break
                 else
-                    echo -e "${RED}✗ 无效的URL格式，请重新输入${NC}"
+                    echo -e "${NEON_RED}✗ 无效的URL格式，请重新输入${NC}"
                 fi
             done
             ;;
@@ -335,7 +363,7 @@ modify_login_bg() {
                 elif validate_url "$value"; then
                     break
                 else
-                    echo -e "${RED}✗ 无效的URL格式，请重新输入${NC}"
+                    echo -e "${NEON_RED}✗ 无效的URL格式，请重新输入${NC}"
                 fi
             done
             ;;
@@ -365,7 +393,7 @@ modify_device_logo() {
                 elif validate_url "$value"; then
                     break
                 else
-                    echo -e "${RED}✗ 无效的URL格式，请重新输入${NC}"
+                    echo -e "${NEON_RED}✗ 无效的URL格式，请重新输入${NC}"
                 fi
             done
             ;;
@@ -381,7 +409,7 @@ modify_device_logo() {
 # 修改飞牛网页标题
 modify_web_title() {
     show_header "修改飞牛网页标题"
-    echo -e "${RED}注意: 自定义标题最好不要有特殊字符, 空格、横线、下划线都可以, 其他请谨慎!!!${NC}"
+    echo -e "${NEON_RED}注意: 自定义标题最好不要有特殊字符, 空格、横线、下划线都可以, 其他请谨慎!!!${NC}"
     
     # 获取新标题
     local new_title=$(prompt_input "请输入新的网页标题")
@@ -400,10 +428,10 @@ modify_web_title() {
             echo -e "${GREEN}✓ 网页标题已成功更新: ${NC}$new_title"
             backup_modified_file "$INDEX_FILE"
         else
-            echo -e "${RED}✗ 标题修改失败（HTML文件），请检查文件权限${NC}"
+            echo -e "${NEON_RED}✗ 标题修改失败（HTML文件），请检查文件权限${NC}"
         fi
     else
-        echo -e "${RED}✗ 未找到文件: ${INDEX_FILE}${NC}"
+        echo -e "${NEON_RED}✗ 未找到文件: ${INDEX_FILE}${NC}"
     fi
     
     # 备份并修改最大JS文件中的标题内容
@@ -451,7 +479,7 @@ set_transparency() {
         echo -e "${GREEN}✓ 完成: 透明度已设置为 ${value}px${NC}"
         backup_modified_file "$largest_css"
     else
-        echo -e "${RED}✗ 未找到任何CSS文件${NC}"
+        echo -e "${NEON_RED}✗ 未找到任何CSS文件${NC}"
     fi
 }
 
@@ -485,7 +513,7 @@ handle_flying_bee_transparency() {
             6) set_transparency "$TARGET_DIR" "$FLYING_BEE_BLUR_PATTERN" "25"; break ;;
             7) set_transparency "$TARGET_DIR" "$FLYING_BEE_BLUR_PATTERN" "30"; break ;;
             0) break ;;
-            *) echo -e "${RED}✗ 无效选择，请重新输入${NC}" ;;
+            *) echo -e "${NEON_RED}✗ 无效选择，请重新输入${NC}" ;;
         esac
     done
 }
@@ -505,7 +533,7 @@ handle_movie_transparency() {
             6) set_transparency "$MOVIE_DIR" "$MOVIE_BLUR_PATTERN" "25"; break ;;
             7) set_transparency "$MOVIE_DIR" "$MOVIE_BLUR_PATTERN" "30"; break ;;
             0) break ;;
-            *) echo -e "${RED}✗ 无效选择，请重新输入${NC}" ;;
+            *) echo -e "${NEON_RED}✗ 无效选择，请重新输入${NC}" ;;
         esac
     done
 }
@@ -625,7 +653,7 @@ apply_theme() {
 # 修改飞牛影视标题
 modify_movie_title() {
     show_header "修改飞牛影视标题"
-    echo -e "${RED}注意: 自定义标题建议避免特殊字符，空格、横线、下划线可正常使用${NC}"
+    echo -e "${NEON_RED}注意: 自定义标题建议避免特殊字符，空格、横线、下划线可正常使用${NC}"
     
     # 获取新标题
     local new_title=$(prompt_input "请输入新的影视页面标题")
@@ -645,10 +673,10 @@ modify_movie_title() {
             echo -e "${GREEN}✓ 修改的文件: ${NC}$MOVIE_INDEX_FILE"
             backup_modified_file "$MOVIE_INDEX_FILE"
         else
-            echo -e "${RED}✗ 标题修改失败，请检查文件权限${NC}"
+            echo -e "${NEON_RED}✗ 标题修改失败，请检查文件权限${NC}"
         fi
     else
-        echo -e "${RED}✗ 未找到影视页面文件: ${MOVIE_INDEX_FILE}${NC}"
+        echo -e "${NEON_RED}✗ 未找到影视页面文件: ${MOVIE_INDEX_FILE}${NC}"
     fi
 }
 
@@ -669,7 +697,7 @@ modify_movie_logo() {
                 elif validate_url "$value"; then
                     break
                 else
-                    echo -e "${RED}✗ 无效的URL格式，请重新输入${NC}"
+                    echo -e "${NEON_RED}✗ 无效的URL格式，请重新输入${NC}"
                 fi
             done
             ;;
@@ -700,7 +728,7 @@ modify_movie_logo() {
         
         echo -e "${GREEN}✓ 成功修改影视LOGO${NC}"
     else
-        echo -e "${RED}✗ 未找到飞牛影视相关JS文件${NC}"
+        echo -e "${NEON_RED}✗ 未找到飞牛影视相关JS文件${NC}"
     fi
 }
 
@@ -721,7 +749,7 @@ modify_movie_bg() {
                 elif validate_url "$value"; then
                     break
                 else
-                    echo -e "${RED}✗ 无效的URL格式，请重新输入${NC}"
+                    echo -e "${NEON_RED}✗ 无效的URL格式，请重新输入${NC}"
                 fi
             done
             ;;
@@ -731,7 +759,7 @@ modify_movie_bg() {
     
     local largest_js=$(find_largest_file "$MOVIE_DIR" "*.js")
     if [ -z "$largest_js" ] || [ ! -f "$largest_js" ]; then
-        echo -e "${RED}✗ 未找到主JS文件${NC}"
+        echo -e "${NEON_RED}✗ 未找到主JS文件${NC}"
         return 1
     fi
     
@@ -739,14 +767,14 @@ modify_movie_bg() {
     local js_filename=$(grep -oP 'path:"login",async lazy\(\)\{return\{Component:\(await Zn\(\(\)\=>import\("\./\K[^"]+' "$largest_js" | head -n1)
     
     if [ -z "$js_filename" ]; then
-        echo -e "${RED}✗ 未找到匹配的JS文件名${NC}"
+        echo -e "${NEON_RED}✗ 未找到匹配的JS文件名${NC}"
         return 1
     fi
     
     # 构建完整路径
     local target_js="${MOVIE_DIR}/${js_filename}"
     if [ ! -f "$target_js" ]; then
-        echo -e "${RED}✗ 目标文件不存在: ${target_js}${NC}"
+        echo -e "${NEON_RED}✗ 目标文件不存在: ${target_js}${NC}"
         return 1
     fi
     
@@ -819,22 +847,32 @@ show_persistence_menu() {
 }
 
 # 主菜单
+show_separator() {
+    echo -e "${DARK_BLUE}═════════════════════════════════════════════════${NC}"
+}
+
 show_menu() {
-    echo -e "\n${CYAN}┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓${NC}"
-    echo -e "${CYAN}┃                                               ┃${NC}"
-    echo -e "${CYAN}┃      ${BLINK}-- 肥牛定制化脚本v1.15 by 米恋泥 --      ${NOBLINK}┃${NC}"
-    echo -e "${CYAN}┃                                               ┃${NC}"
-    echo -e "${CYAN}┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛${NC}"
-    echo -e "1. 选择预设主题（小白推荐）"
-    echo -e "2. 修改登录界面背景图片"
-    echo -e "3. 修改设备信息logo图片"
-    echo -e "4. 修改登录界面logo图片"
-    echo -e "5. 修改飞牛网页标题"
-    echo -e "6. 修改登录框透明度"
-    echo -e "7. 修改飞牛影视界面"
-    echo -e "8. 选择是否保存脚本设置"
-    echo -e "0. 退出"
+    # 清除屏幕并显示标题
+    clear
+    echo -e "\n${DARK_BLUE}╔═══════════════════════════════════════════════╗${NC}"
+    echo -e "${DARK_BLUE}║${TECH_CYAN}                                               ${DARK_BLUE}║${NC}"
+    echo -e "${DARK_BLUE}║${NEON_GREEN}         ${BOLD}${BLINK}肥牛定制化脚本v1.15 by 米恋泥${NO_EFFECT}         ${DARK_BLUE}║${NC}"
+    echo -e "${DARK_BLUE}║${TECH_CYAN}                                               ${DARK_BLUE}║${NC}"
+    echo -e "${DARK_BLUE}╚═══════════════════════════════════════════════╝${NC}"
+    
+    # 主菜单选项 - 每个选项使用独特颜色
+    echo -e "${TECH_GREEN} 1.${WHITE} 选择预设主题（小白推荐）${NC}"
+    echo -e "${TECH_BLUE} 2.${WHITE} 修改登录界面背景图片${NC}"
+    echo -e "${TECH_PURPLE} 3.${WHITE} 修改设备信息logo图片${NC}"
+    echo -e "${TECH_CYAN} 4.${WHITE} 修改登录界面logo图片${NC}"
+    echo -e "${TECH_YELLOW} 5.${WHITE} 修改飞牛网页标题${NC}"
+    echo -e "${TECH_RED} 6.${WHITE} 修改登录框透明度${NC}"
+    echo -e "${TECH_ORANGE} 7.${WHITE} 修改飞牛影视界面${NC}"
+    echo -e "${TECH_PINK} 8.${WHITE} 选择是否保存脚本设置${NC}"
+    echo -e "${DARK_BLUE} 0.${WHITE} 退出${NC}"
+    
     show_separator
+    echo -e "${TECH_CYAN}请输入选项 [0-8]: ${NC}\c"
 }
 
 # ==================== 主执行流程 ====================
@@ -846,7 +884,7 @@ main() {
     init_backup_dir  # 初始化备份目录
     
     if [ ! -d "$TARGET_DIR" ]; then
-        echo -e "${RED}✗ 错误: 目标目录不存在 $TARGET_DIR${NC}" >&2
+        echo -e "${NEON_RED}✗ 错误: 目标目录不存在 $TARGET_DIR${NC}" >&2
         exit 1
     fi
 clear
@@ -864,7 +902,7 @@ clear
                     case "$sub_choice" in
                         1|2) modify_login_logo "$sub_choice"; break ;;
                         0) break ;;
-                        *) echo -e "${RED}✗ 无效选择，请重新输入${NC}" ;;
+                        *) echo -e "${NEON_RED}✗ 无效选择，请重新输入${NC}" ;;
                     esac
                 done
                 ;;
@@ -877,7 +915,7 @@ clear
                     case "$sub_choice" in
                         1|2) modify_login_bg "$sub_choice"; break ;;
                         0) break ;;
-                        *) echo -e "${RED}✗ 无效选择，请重新输入${NC}" ;;
+                        *) echo -e "${NEON_RED}✗ 无效选择，请重新输入${NC}" ;;
                     esac
                 done
                 ;;
@@ -890,7 +928,7 @@ clear
                     case "$sub_choice" in
                         1|2) modify_device_logo "$sub_choice"; break ;;
                         0) break ;;
-                        *) echo -e "${RED}✗ 无效选择，请重新输入${NC}" ;;
+                        *) echo -e "${NEON_RED}✗ 无效选择，请重新输入${NC}" ;;
                     esac
                 done
                 ;;
@@ -903,7 +941,7 @@ clear
                         1) handle_flying_bee_transparency; break ;;
                         2) handle_movie_transparency; break ;;
                         0) break ;;
-                        *) echo -e "${RED}✗ 无效选择，请重新输入${NC}" ;;
+                        *) echo -e "${NEON_RED}✗ 无效选择，请重新输入${NC}" ;;
                     esac
                 done
                 ;;
@@ -924,7 +962,7 @@ clear
                         6) apply_eva_theme; break ;;
                         7) apply_guimie_theme; break ;;
                         0) break ;;
-                        *) echo -e "${RED}✗ 无效选择，请重新输入${NC}" ;;
+                        *) echo -e "${NEON_RED}✗ 无效选择，请重新输入${NC}" ;;
                     esac
                 done
                 ;;
@@ -947,7 +985,7 @@ clear
                                 case "$sub_choice" in
                                     1|2) modify_movie_logo "$sub_choice"; break ;;
                                     0) break ;;
-                                    *) echo -e "${RED}✗ 无效选择，请重新输入${NC}" ;;
+                                    *) echo -e "${NEON_RED}✗ 无效选择，请重新输入${NC}" ;;
                                 esac
                             done
                             break 
@@ -961,13 +999,13 @@ clear
                                 case "$sub_choice" in
                                     1|2) modify_movie_bg "$sub_choice"; break ;;
                                     0) break ;;
-                                    *) echo -e "${RED}✗ 无效选择，请重新输入${NC}" ;;
+                                    *) echo -e "${NEON_RED}✗ 无效选择，请重新输入${NC}" ;;
                                 esac
                             done
                             break 
                             ;;
                         0) break ;;
-                        *) echo -e "${RED}✗ 无效选择，请重新输入${NC}" ;;
+                        *) echo -e "${NEON_RED}✗ 无效选择，请重新输入${NC}" ;;
                     esac
                 done
                 ;;
@@ -980,14 +1018,14 @@ clear
                         1) add_persistence; break ;;
                         2) remove_persistence; break ;;
                         0) break ;;
-                        *) echo -e "${RED}✗ 无效选择，请重新输入${NC}" ;;
+                        *) echo -e "${NEON_RED}✗ 无效选择，请重新输入${NC}" ;;
                     esac
                 done
                 ;;
             0)  # 退出
                 exit 0 ;;
             *) 
-                echo -e "${RED}✗ 无效选择，请重新输入${NC}" ;;
+                echo -e "${NEON_RED}✗ 无效选择，请重新输入${NC}" ;;
         esac
     done
 }
