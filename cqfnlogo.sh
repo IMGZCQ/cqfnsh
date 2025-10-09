@@ -1,0 +1,963 @@
+#!/bin/bash
+set -euo pipefail
+
+# ==================== 变量定义区 ====================
+# 备份相关变量
+readonly BACKUP_DIR="/usr/cqshbak"
+readonly BACKUP_RECORD_SUFFIX=".txt"
+
+# 颜色定义
+readonly RED='\033[0;31m'
+readonly GREEN='\033[0;32m'
+readonly BLUE='\033[0;34m'
+readonly YELLOW='\033[1;33m'
+readonly CYAN='\033[0;36m'
+readonly MAGENTA='\033[0;35m'
+readonly NC='\033[0m'
+
+# 路径定义
+readonly TARGET_DIR="${1:-/usr/trim/www/assets}"
+readonly MOVIE_DIR="${1:-/usr/local/apps/@appcenter/trim.media/static/assets}"
+readonly LOG_FILE="${2:-./js_modification.log}"
+readonly BASE_DIR="/usr/trim/www"
+readonly RESOURCE_DIR="userimg"
+readonly INDEX_FILE="${BASE_DIR}/index.html"
+readonly MOVIE_INDEX_FILE="/usr/local/apps/@appcenter/trim.media/static/index.html"
+
+# Debian 12 启动脚本路径
+readonly STARTUP_SERVICE="/etc/systemd/system/cqshbak.service"
+readonly STARTUP_SCRIPT="/usr/local/bin/cqshbak_restore.sh"
+
+# JS/CSS标识定义
+readonly LOGIN_FORM_JS_PATTERN="*login-form*"
+readonly LOGIN_LOGO_MARKER='o="'
+readonly LOGIN_BG_MARKER='url("'
+readonly DEVICE_LOGO_MARKER='n8="'
+readonly MOVIE_LOGO_MARKER1='WDe="'
+readonly MOVIE_LOGO_MARKER2='KDe="'
+readonly MOVIE_LOGO_MARKER3='f="'
+readonly MOVIE_LOGO_MARKER4='e="'
+readonly MOVIE_BG_MARKER='J="'
+readonly BACKDROP_BLUR_OFF='backdrop-blur-\\\[0px\\\]{--tw'
+readonly BACKDROP_BLUR_OFF1='backdrop-blur-\\\[0px\\\]{--un'
+readonly BACKDROP_BLUR_ON='backdrop-blur-\\\[20px\\\]{--tw'
+readonly BACKDROP_BLUR_ON1='backdrop-blur-\\\[20px\\\]{--un'
+
+# 透明度相关模式
+readonly FLYING_BEE_BLUR_PATTERN='un-backdrop-blur:blur('
+readonly MOVIE_BLUR_PATTERN=']{--tw-backdrop-blur: blur('
+
+# ==================== 工具函数区 ====================
+
+# 检查是否为root用户
+check_root() {
+    if [ "$(id -u)" -ne 0 ]; then
+        echo -e "${RED}⚠️ 错误：此脚本需要root权限才能运行${NC}" >&2
+        echo -e "${RED}⚠️ 请使用 sudo -i 命令或以 root 用户身份执行。${NC}" >&2
+        exit 1
+    fi
+    echo -e "${CYAN}✓ 已确认root权限，开始执行脚本...${NC}"
+}
+
+# URL验证函数
+# 参数: 待验证的URL
+# 返回: 0-有效, 1-无效
+validate_url() {
+    local url="$1"
+    [[ "$url" =~ ^https?:// ]] || return 1
+    return 0
+}
+
+# 检查并创建资源目录
+check_resource_dir() {
+    local dir_path="${BASE_DIR}/${RESOURCE_DIR}"
+    if [ ! -d "$dir_path" ]; then
+        echo -e "${YELLOW}⚠️ 资源目录不存在，正在创建: $dir_path${NC}"
+        mkdir -p "$dir_path" && chmod 755 "$dir_path" && \
+        echo -e "${GREEN}✓ 资源目录创建成功${NC}" || \
+        echo -e "${RED}× 资源目录创建失败${NC}"
+    fi
+}
+
+# 初始化备份目录
+init_backup_dir() {
+    if [ ! -d "$BACKUP_DIR" ]; then
+        echo -e "${YELLOW}⚠️ 备份目录不存在，正在创建: $BACKUP_DIR${NC}"
+        mkdir -p "$BACKUP_DIR" && chmod 755 "$BACKUP_DIR" && \
+        echo -e "${GREEN}✓ 备份目录创建成功${NC}" || \
+        echo -e "${RED}× 备份目录创建失败${NC}"
+    fi
+}
+
+# 备份修改后的文件
+backup_modified_file() {
+    local file_path="$1"
+    
+    if [ ! -f "$file_path" ]; then
+        echo -e "${RED}× 要备份的文件不存在: $file_path${NC}"
+        return 1
+    fi
+
+    # 获取文件名
+    local file_name=$(basename "$file_path")
+    local backup_file="${BACKUP_DIR}/${file_name}"
+    local record_file="${backup_file}${BACKUP_RECORD_SUFFIX}"
+
+    # 复制文件到备份目录
+    if cp -f "$file_path" "$backup_file"; then
+        # 记录原始路径
+        echo "$file_path" > "$record_file"
+        echo -e "${GREEN}✓ 文件已备份到: ${NC}$backup_file"
+        echo -e "${GREEN}✓ 原始路径记录到: ${NC}$record_file"
+    else
+        echo -e "${RED}× 文件备份失败: $file_path${NC}"
+    fi
+}
+
+# 安全替换函数（带文件备份功能）
+safe_replace() {
+    local file_path="$1"
+    local original="$2"
+    local new_value="$3"
+
+    # 备份原始文件
+    backup_modified_file "$file_path"
+
+    # 转义特殊字符
+    local escaped_value=$(printf '%q' "$new_value" | sed "s/'/'\\\\''/g")
+
+    # 执行替换并保留双引号结构
+    if sed -i "s|${original}[^\"]*\"|${original}${escaped_value}\"|g" "$file_path"; then
+        echo -e "${GREEN}✓ 成功更新: ${NC}$new_value"
+        # 备份修改后的文件
+        backup_modified_file "$file_path"
+    else
+        echo -e "${RED}× 更新失败: ${NC}$file_path"
+    fi
+}
+
+# 带提示的输入函数
+# 参数: 提示信息
+# 返回: 用户输入内容
+prompt_input() {
+    local prompt="$1"
+    read -p "$prompt (返回不修改请直接按Enter): " input
+    echo "$input"
+}
+
+# 查找最大的文件
+# 参数: 目录路径, 文件模式(如"*.js")
+# 返回: 最大文件的路径
+find_largest_file() {
+    local dir="$1"
+    local pattern="$2"
+    
+    if [ ! -d "$dir" ]; then
+        echo -e "${RED}× 目录不存在: $dir${NC}"
+        return 1
+    fi
+    
+    local largest_file=$(find "$dir" -type f -name "$pattern" -exec du -ah {} + 2>/dev/null | sort -rh | head -n1 | awk '{print $2}')
+    
+    if [ -z "$largest_file" ] || [ ! -f "$largest_file" ]; then
+        echo -e "${RED}× 未找到符合条件的$pattern文件${NC}"
+        return 1
+    fi
+    
+    echo "$largest_file"
+    return 0
+}
+
+# 查找登录表单JS文件
+# 返回: 登录表单JS文件路径
+find_login_form_js() {
+    local login_file=$(find "$TARGET_DIR" -type f -name "*.js" -iname "$LOGIN_FORM_JS_PATTERN" | head -n1)
+    
+    if [ -z "$login_file" ] || [ ! -f "$login_file" ]; then
+        echo -e "${RED}× 未找到登录表单JS文件${NC}"
+        return 1
+    fi
+    
+    echo "$login_file"
+    return 0
+}
+
+# 添加持久化处理到启动项（Debian 12 systemd方式）
+add_persistence() {
+    # 创建恢复脚本
+    cat << 'EOF' > "$STARTUP_SCRIPT"
+#!/bin/bash
+BACKUP_DIR="/usr/cqshbak"
+BACKUP_RECORD_SUFFIX=".txt"
+
+if [ -d "$BACKUP_DIR" ]; then
+    find "$BACKUP_DIR" -type f ! -name "*$BACKUP_RECORD_SUFFIX" | while read -r backup_file; do
+        record_file="${backup_file}$BACKUP_RECORD_SUFFIX"
+        if [ -f "$record_file" ]; then
+            original_path=$(cat "$record_file")
+            original_dir=$(dirname "$original_path")
+            if [ -d "$original_dir" ]; then
+                cp -f "$backup_file" "$original_path"
+                echo "Restored: $original_path"
+            fi
+        fi
+    done
+fi
+EOF
+
+    # 设置脚本权限
+    chmod +x "$STARTUP_SCRIPT"
+
+    # 创建systemd服务文件
+    cat << EOF > "$STARTUP_SERVICE"
+[Unit]
+Description=CQSHBAK Persistence Service
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=$STARTUP_SCRIPT
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# 编辑服务文件添加延迟启动配置（如果尚未添加）
+# 以下命令会自动向服务文件的[Service]段插入延迟配置（假设服务文件已存在）
+sudo sed -i '/\[Service\]/a ExecStartPre=/bin/sleep 100' /etc/systemd/system/cqshbak.service
+
+# 重新加载系统服务配置
+systemctl daemon-reload
+# 启用服务（开机自启）
+systemctl enable cqshbak.service
+# 启动服务
+systemctl start cqshbak.service
+
+echo -e "${GREEN}✓ 持久化处理已添加到系统服务（已配置100秒延迟生效）${NC}"
+echo -e "${GREEN}✓ 服务名称: cqshbak.service${NC}"
+}
+
+# 移除启动项中的持久化处理
+remove_persistence() {
+    # 停止并禁用服务
+    if systemctl is-active --quiet cqshbak.service; then
+        systemctl stop cqshbak.service
+    fi
+    
+    if systemctl is-enabled --quiet cqshbak.service; then
+        systemctl disable cqshbak.service
+    fi
+
+    # 删除服务文件和脚本
+    rm -f "$STARTUP_SERVICE"
+    rm -f "$STARTUP_SCRIPT"
+    
+    # 新增：删除备份目录中的所有文件（保留原始目录结构）
+    if [ -d "$BACKUP_DIR" ]; then
+        echo -e "${YELLOW}⚠️ 正在删除备份目录中的文件: $BACKUP_DIR${NC}"
+        # 删除目录内所有文件但保留目录本身
+        find "$BACKUP_DIR" -mindepth 1 -delete
+        if [ $? -eq 0 ]; then
+            echo -e "${GREEN}✓ 备份目录文件已清空${NC}"
+        else
+            echo -e "${RED}× 备份目录文件删除失败${NC}"
+        fi
+    fi
+    
+    systemctl daemon-reload
+    
+    echo -e "${GREEN}✓ 已取消持久化处理，重启后修改将还原${NC}"
+}
+
+# ==================== 功能函数区 ====================
+
+# 修改登录界面logo
+# 参数: 模式(1-使用本地路径, 2-使用URL)
+modify_login_logo() {
+    local mode="$1"
+    local value=""
+    
+    case "$mode" in
+        1) value="${RESOURCE_DIR}/login_logo.png" ;;
+        2) 
+            while true; do
+                value=$(prompt_input "请输入登录logo图片URL")
+                if [ -z "$value" ]; then
+                    echo -e "${YELLOW}⚠️ 未输入URL，跳过修改${NC}"
+                    return
+                elif validate_url "$value"; then
+                    break
+                else
+                    echo -e "${RED}× 无效的URL格式，请重新输入${NC}"
+                fi
+            done
+            ;;
+    esac
+
+    echo -e "\n${YELLOW}=== 修改登录界面logo图片 ===${NC}"
+    local login_file=$(find_login_form_js)
+    if [ -n "$login_file" ] && [ -f "$login_file" ]; then
+        safe_replace "$login_file" "$LOGIN_LOGO_MARKER" "$value"
+    fi
+}
+
+# 修改登录背景图片
+# 参数: 模式(1-使用本地路径, 2-使用URL)
+modify_login_bg() {
+    local mode="$1"
+    local value=""
+    
+    case "$mode" in
+        1) value="${RESOURCE_DIR}/login_bg.jpg" ;;
+        2) 
+            while true; do
+                value=$(prompt_input "请输入登录背景图片URL")
+                if [ -z "$value" ]; then
+                    echo -e "${YELLOW}⚠️ 未输入URL，跳过修改${NC}"
+                    return
+                elif validate_url "$value"; then
+                    break
+                else
+                    echo -e "${RED}× 无效的URL格式，请重新输入${NC}"
+                fi
+            done
+            ;;
+    esac
+
+    echo -e "\n${YELLOW}=== 修改登录界面背景图片 ===${NC}"
+    local login_file=$(find_login_form_js)
+    if [ -n "$login_file" ] && [ -f "$login_file" ]; then
+        safe_replace "$login_file" "$LOGIN_BG_MARKER" "$value"
+    fi
+}
+
+# 修改设备信息logo
+# 参数: 模式(1-使用本地路径, 2-使用URL)
+modify_device_logo() {
+    local mode="$1"
+    local value=""
+    
+    case "$mode" in
+        1) value="${RESOURCE_DIR}/fnlogo.png" ;;
+        2) 
+            while true; do
+                value=$(prompt_input "请输入设备logo图片URL")
+                if [ -z "$value" ]; then
+                    echo -e "${YELLOW}⚠️ 未输入URL，跳过修改${NC}"
+                    return
+                elif validate_url "$value"; then
+                    break
+                else
+                    echo -e "${RED}× 无效的URL格式，请重新输入${NC}"
+                fi
+            done
+            ;;
+    esac
+
+    echo -e "\n${YELLOW}=== 修改设备信息logo图片 ===${NC}"
+    local largest_js=$(find_largest_file "$TARGET_DIR" "*.js")
+    if [ -n "$largest_js" ] && [ -f "$largest_js" ]; then
+        safe_replace "$largest_js" "$DEVICE_LOGO_MARKER" "$value"
+    fi
+}
+
+# 修改飞牛网页标题
+modify_web_title() {
+    echo -e "\n${YELLOW}=== 修改飞牛网页标题 ===${NC}"
+    echo -e "${RED}注意: 自定义标题最好不要有特殊字符, 空格、横线、下划线都可以, 其他请谨慎!!!${NC}"
+    
+    # 获取新标题
+    local new_title=$(prompt_input "请输入新的网页标题")
+    if [ -z "$new_title" ]; then
+        echo -e "${YELLOW}⚠️ 未输入标题，跳过修改${NC}"
+        return
+    fi
+    
+    # 转义特殊字符
+    local escaped_title=$(printf '%q' "$new_title" | sed "s/'/'\\\\''/g")
+    
+    # 备份并修改index.html中的<title>标签
+    if [ -f "$INDEX_FILE" ]; then
+        backup_modified_file "$INDEX_FILE"
+        if sed -i "s|<title>[^<]*</title>|<title>${escaped_title}</title>|g" "$INDEX_FILE"; then
+            echo -e "${GREEN}✓ 网页标题已成功更新: ${NC}$new_title"
+            backup_modified_file "$INDEX_FILE"
+        else
+            echo -e "${RED}× 标题修改失败（HTML文件），请检查文件权限${NC}"
+        fi
+    else
+        echo -e "${RED}× 未找到文件: ${INDEX_FILE}${NC}"
+    fi
+    
+    # 备份并修改最大JS文件中的标题内容
+    local largest_js=$(find_largest_file "$TARGET_DIR" "*.js")
+    if [ -n "$largest_js" ] && [ -f "$largest_js" ]; then
+        backup_modified_file "$largest_js"
+        sed -i.bak 's|\(document\.title=`\)[^`]*|\1'"$escaped_title"'|' "$largest_js"
+        echo -e "${GREEN}✓ 修改的JS文件: ${NC}$largest_js"
+        echo -e "${GREEN}✓ 修改的文件: ${NC}$INDEX_FILE"
+        backup_modified_file "$largest_js"
+        rm -f "${largest_js}.bak"
+    fi
+}
+
+# 设置透明度通用函数
+set_transparency() {
+    local dir="$1"
+    local pattern="$2"
+    local value="$3"
+    
+    echo -e "\n${YELLOW}=== 设置透明度为 ${value}px ===${NC}"
+    local largest_css=$(find_largest_file "$dir" "*.css")
+    if [ -n "$largest_css" ] && [ -f "$largest_css" ]; then
+        backup_modified_file "$largest_css"
+        # 转义特殊字符，尤其是括号
+        local escaped_pattern=$(printf '%q' "$pattern")
+        # 执行替换，匹配模式后的数值部分
+        sed -i "s/]{--tw-backdrop-blur: blur(0px);/]{--tw-backdrop-blur: blur(${value}px);/g" "$largest_css"
+        sed -i "s/]{--tw-backdrop-blur: blur(5px);/]{--tw-backdrop-blur: blur(${value}px);/g" "$largest_css"
+        sed -i "s/]{--tw-backdrop-blur: blur(10px);/]{--tw-backdrop-blur: blur(${value}px);/g" "$largest_css"
+        sed -i "s/]{--tw-backdrop-blur: blur(15px);/]{--tw-backdrop-blur: blur(${value}px);/g" "$largest_css"
+        sed -i "s/]{--tw-backdrop-blur: blur(20px);/]{--tw-backdrop-blur: blur(${value}px);/g" "$largest_css"
+        sed -i "s/]{--tw-backdrop-blur: blur(25px);/]{--tw-backdrop-blur: blur(${value}px);/g" "$largest_css"
+        sed -i "s/]{--tw-backdrop-blur: blur(30px);/]{--tw-backdrop-blur: blur(${value}px);/g" "$largest_css"
+        
+        sed -i "s/un-backdrop-blur:blur(0px);/un-backdrop-blur:blur(${value}px);/g" "$largest_css"
+        sed -i "s/un-backdrop-blur:blur(5px);/un-backdrop-blur:blur(${value}px);/g" "$largest_css"
+        sed -i "s/un-backdrop-blur:blur(10px);/un-backdrop-blur:blur(${value}px);/g" "$largest_css"
+        sed -i "s/un-backdrop-blur:blur(15px);/un-backdrop-blur:blur(${value}px);/g" "$largest_css"
+        sed -i "s/un-backdrop-blur:blur(20px);/un-backdrop-blur:blur(${value}px);/g" "$largest_css"
+        sed -i "s/un-backdrop-blur:blur(25px);/un-backdrop-blur:blur(${value}px);/g" "$largest_css"
+        sed -i "s/un-backdrop-blur:blur(30px);/un-backdrop-blur:blur(${value}px);/g" "$largest_css"
+
+        
+        echo -e "${GREEN}✓ 完成: 透明度已设置为 ${value}px${NC}"
+        backup_modified_file "$largest_css"
+    else
+        echo -e "${RED}× 未找到任何CSS文件${NC}"
+    fi
+}
+
+# 显示透明度选择菜单
+show_transparency_menu() {
+    local title="$1"
+    echo -e "\n${YELLOW}===== $title =====${NC}"
+    echo -e "1. 0px"
+    echo -e "2. 5px"
+    echo -e "3. 10px"
+    echo -e "4. 15px"
+    echo -e "5. 20px"
+    echo -e "6. 25px"
+    echo -e "7. 30px"
+    echo -e "0. 返回上一级"
+    echo -e "${YELLOW}==================${NC}"
+}
+
+# 处理飞牛登录框透明度设置
+handle_flying_bee_transparency() {
+    while true; do
+        show_transparency_menu "飞牛登录框透明度设置"
+        read -p "请选择透明度值 (0-7): " choice
+        
+        case "$choice" in
+            1) set_transparency "$TARGET_DIR" "$FLYING_BEE_BLUR_PATTERN" "0"; break ;;
+            2) set_transparency "$TARGET_DIR" "$FLYING_BEE_BLUR_PATTERN" "5"; break ;;
+            3) set_transparency "$TARGET_DIR" "$FLYING_BEE_BLUR_PATTERN" "10"; break ;;
+            4) set_transparency "$TARGET_DIR" "$FLYING_BEE_BLUR_PATTERN" "15"; break ;;
+            5) set_transparency "$TARGET_DIR" "$FLYING_BEE_BLUR_PATTERN" "20"; break ;;
+            6) set_transparency "$TARGET_DIR" "$FLYING_BEE_BLUR_PATTERN" "25"; break ;;
+            7) set_transparency "$TARGET_DIR" "$FLYING_BEE_BLUR_PATTERN" "30"; break ;;
+            0) break ;;
+            *) echo -e "${RED}无效选择，请重新输入${NC}" ;;
+        esac
+    done
+}
+
+# 处理影视登录框透明度设置
+handle_movie_transparency() {
+    while true; do
+        show_transparency_menu "影视登录框透明度设置"
+        read -p "请选择透明度值 (0-7): " choice
+        
+        case "$choice" in
+            1) set_transparency "$MOVIE_DIR" "$MOVIE_BLUR_PATTERN" "0"; break ;;
+            2) set_transparency "$MOVIE_DIR" "$MOVIE_BLUR_PATTERN" "5"; break ;;
+            3) set_transparency "$MOVIE_DIR" "$MOVIE_BLUR_PATTERN" "10"; break ;;
+            4) set_transparency "$MOVIE_DIR" "$MOVIE_BLUR_PATTERN" "15"; break ;;
+            5) set_transparency "$MOVIE_DIR" "$MOVIE_BLUR_PATTERN" "20"; break ;;
+            6) set_transparency "$MOVIE_DIR" "$MOVIE_BLUR_PATTERN" "25"; break ;;
+            7) set_transparency "$MOVIE_DIR" "$MOVIE_BLUR_PATTERN" "30"; break ;;
+            0) break ;;
+            *) echo -e "${RED}无效选择，请重新输入${NC}" ;;
+        esac
+    done
+}
+
+# ==================== 预设主题函数区 ====================
+
+# 应用高达00主题
+apply_gundam_theme() {
+    echo -e "\n${YELLOW}=== 应用高达00主题 ===${NC}"
+    
+    local login_logo="https://img.on79.cfd/file/1759752438383_login.png"
+    local login_bg="https://img.on79.cfd/file/1759751427376_bg.png"
+    local device_logo="https://img.on79.cfd/file/1759752817818_993788ea3f5acb3d42151f7b3a30e496.png"
+    
+    apply_theme "$login_logo" "$login_bg" "$device_logo"
+    echo -e "${GREEN}✓ 高达00主题应用完成${NC}"
+}
+
+# 应用初音未来主题
+apply_miku_theme() {
+    echo -e "\n${YELLOW}=== 应用初音未来主题 ===${NC}"
+    
+    local login_logo="https://img.on79.cfd/file/1759755919009_3a431f4408e2d8879beb3ae0a6d9473897be8ee1.jpg_.png"
+    local login_bg="https://img.on79.cfd/file/1759755273357_dca742293ef3b268e5e1153d9a90abe63016.jpeg"
+    local device_logo="https://img.on79.cfd/file/1759755278837_403748c03ada425a0008f8f9f43c7b4c.png"
+    
+    apply_theme "$login_logo" "$login_bg" "$device_logo"
+    echo -e "${GREEN}✓ 初音未来主题应用完成${NC}"
+}
+
+# 应用钢之炼金术师主题
+apply_gzljss_theme() {
+    echo -e "\n${YELLOW}=== 应用钢之炼金术师主题 ===${NC}"
+    
+    local login_logo="https://img.on79.cfd/file/1759757773908_0.png"
+    local login_bg="https://img.on79.cfd/file/1759758745814_ca847658-796a-4e0f-83e1-1093613cfa96.webp"
+    local device_logo="https://img.on79.cfd/file/1759758028574_1.png"
+    
+    apply_theme "$login_logo" "$login_bg" "$device_logo"
+    echo -e "${GREEN}✓ 钢之炼金术师主题应用完成${NC}"
+}
+
+# 应用海贼王主题
+apply_haizeiwang_theme() {
+    echo -e "\n${YELLOW}=== 应用海贼王主题 ===${NC}"
+    
+    local login_logo="https://img.on79.cfd/file/1759760428928_FvC0L7Rz4U6ImCiHAFOyQsHZu6Nw.png"
+    local login_bg="https://img.on79.cfd/file/1759760423918_703ddc5a7ea9972e74769ee7a8543e9793b62592.webp"
+    local device_logo="https://img.on79.cfd/file/1759760422420_87bc5de4ly1hrwn0xs3zej20u011in0b.png"
+    
+    apply_theme "$login_logo" "$login_bg" "$device_logo"
+    echo -e "${GREEN}✓ 海贼王主题应用完成${NC}"
+}
+
+# 应用JOJO的奇妙冒险主题
+apply_jojo_theme() {
+    echo -e "\n${YELLOW}=== 应用JOJO的奇妙冒险主题 ===${NC}"
+    
+    local login_logo="https://img.on79.cfd/file/1759815392132_jojo.png"
+    local login_bg="https://img.on79.cfd/file/1759815397774_jojo.webp"
+    local device_logo="https://img.on79.cfd/file/1759815392132_jojo.png"
+    
+    apply_theme "$login_logo" "$login_bg" "$device_logo"
+    echo -e "${GREEN}✓ JOJO的奇妙冒险主题应用完成${NC}"
+}
+
+# 应用新世纪福音战士主题
+apply_eva_theme() {
+    echo -e "\n${YELLOW}=== 应用新世纪福音战士主题 ===${NC}"
+    
+    local login_logo="https://img.on79.cfd/file/1759817609585_b0d3-hxsrwwr3510582.png"
+    local login_bg="https://picx.zhimg.com/v2-586fedc672445aa448a9b0a09168eb08_r.jpg"
+    local device_logo="https://img.on79.cfd/file/1759817614477_a08b87d6277f9e2f678e991d1930e924b899f368.png"
+    
+    apply_theme "$login_logo" "$login_bg" "$device_logo"
+    echo -e "${GREEN}✓ 新世纪福音战士主题应用完成${NC}"
+}
+
+# 应用主题的通用函数
+# 参数: login_logo, login_bg, device_logo
+apply_theme() {
+    local login_logo="$1"
+    local login_bg="$2"
+    local device_logo="$3"
+    
+    # 修改登录logo
+    local login_file=$(find_login_form_js)
+    if [ -n "$login_file" ] && [ -f "$login_file" ]; then
+        safe_replace "$login_file" "$LOGIN_LOGO_MARKER" "$login_logo"
+    fi
+    
+    # 修改登录背景
+    if [ -n "$login_file" ] && [ -f "$login_file" ]; then
+        safe_replace "$login_file" "$LOGIN_BG_MARKER" "$login_bg"
+    fi
+    
+    # 修改设备logo
+    local largest_js=$(find_largest_file "$TARGET_DIR" "*.js")
+    if [ -n "$largest_js" ] && [ -f "$largest_js" ]; then
+        safe_replace "$largest_js" "$DEVICE_LOGO_MARKER" "$device_logo"
+    fi
+}
+
+# ==================== 飞牛影视相关功能 ====================
+
+# 修改飞牛影视标题
+modify_movie_title() {
+    echo -e "\n${YELLOW}=== 修改飞牛影视标题 ===${NC}"
+    echo -e "${RED}注意: 自定义标题建议避免特殊字符，空格、横线、下划线可正常使用${NC}"
+    
+    # 获取新标题
+    local new_title=$(prompt_input "请输入新的影视页面标题")
+    if [ -z "$new_title" ]; then
+        echo -e "${YELLOW}⚠️ 未输入标题，跳过修改${NC}"
+        return
+    fi
+    
+    # 转义特殊字符
+    local escaped_title=$(printf '%q' "$new_title" | sed "s/'/'\\\\''/g")
+    
+    # 备份并修改影视页面index.html中的<title>标签
+    if [ -f "$MOVIE_INDEX_FILE" ]; then
+        backup_modified_file "$MOVIE_INDEX_FILE"
+        if sed -i "s|<title>[^<]*</title>|<title>${escaped_title}</title>|g" "$MOVIE_INDEX_FILE"; then
+            echo -e "${GREEN}✓ 影视页面标题已成功更新: ${NC}$new_title"
+            echo -e "${GREEN}✓ 修改的文件: ${NC}$MOVIE_INDEX_FILE"
+            backup_modified_file "$MOVIE_INDEX_FILE"
+        else
+            echo -e "${RED}× 标题修改失败，请检查文件权限${NC}"
+        fi
+    else
+        echo -e "${RED}× 未找到影视页面文件: ${MOVIE_INDEX_FILE}${NC}"
+    fi
+}
+
+# 修改飞牛影视LOGO
+# 参数: 模式(1-使用本地路径, 2-使用URL)
+modify_movie_logo() {
+    local mode="$1"
+    local value=""
+    
+    case "$mode" in
+        1) value="/${RESOURCE_DIR}/movie_logo.png" ;;
+        2) 
+            while true; do
+                value=$(prompt_input "请输入飞牛影视LOGO图片URL")
+                if [ -z "$value" ]; then
+                    echo -e "${YELLOW}⚠️ 未输入URL，跳过修改${NC}"
+                    return
+                elif validate_url "$value"; then
+                    break
+                else
+                    echo -e "${RED}× 无效的URL格式，请重新输入${NC}"
+                fi
+            done
+            ;;
+    esac
+
+    echo -e "\n${YELLOW}=== 修改飞牛影视LOGO ===${NC}"
+    local movie_file=$(find_largest_file "$MOVIE_DIR" "*.js")
+    if [ -n "$movie_file" ] && [ -f "$movie_file" ]; then
+        # 提取目标文件名
+        local target_filename=$(
+            sed -n '1p' "$movie_file" |
+            grep -o '\["assets/[^"]*",.*"assets/[^"]*"\]' |
+            sed 's/^\["//; s/"\]$//' |
+            tr ',' '\n' |
+            sed 's/^[[:space:]]*"//; s/"[[:space:]]*$//' |
+            sed 's/^assets\///' |
+            tail -n 6 | head -n 1
+        )
+
+        # 执行替换
+        safe_replace "$movie_file" "$MOVIE_LOGO_MARKER1" "$value"
+        safe_replace "$movie_file" "$MOVIE_LOGO_MARKER2" "$value"
+        
+        if [ -n "$target_filename" ] && [ -f "${MOVIE_DIR}/${target_filename}" ]; then
+            safe_replace "${MOVIE_DIR}/${target_filename}" "$MOVIE_LOGO_MARKER3" "$value"
+            safe_replace "${MOVIE_DIR}/${target_filename}" "$MOVIE_LOGO_MARKER4" "$value"
+        fi
+        
+        echo -e "${GREEN}✓ 成功修改影视LOGO${NC}"
+    else
+        echo -e "${RED}× 未找到飞牛影视相关JS文件${NC}"
+    fi
+}
+
+# 修改飞牛影视背景
+# 参数: 模式(1-使用本地路径, 2-使用URL)
+modify_movie_bg() {
+    local mode="$1"
+    local value=""
+    
+    case "$mode" in
+        1) value="/${RESOURCE_DIR}/movie_bg.jpg" ;;
+        2) 
+            while true; do
+                value=$(prompt_input "请输入飞牛影视背景图片URL")
+                if [ -z "$value" ]; then
+                    echo -e "${YELLOW}⚠️ 未输入URL，跳过修改${NC}"
+                    return
+                elif validate_url "$value"; then
+                    break
+                else
+                    echo -e "${RED}× 无效的URL格式，请重新输入${NC}"
+                fi
+            done
+            ;;
+    esac
+
+    echo -e "\n${YELLOW}=== 修改飞牛影视背景 ===${NC}"
+    
+    local largest_js=$(find_largest_file "$MOVIE_DIR" "*.js")
+    if [ -z "$largest_js" ] || [ ! -f "$largest_js" ]; then
+        echo -e "${RED}× 未找到主JS文件${NC}"
+        return 1
+    fi
+    
+    # 提取目标JS文件名
+    local js_filename=$(grep -oP 'path:"login",async lazy\(\)\{return\{Component:\(await Zn\(\(\)\=>import\("\./\K[^"]+' "$largest_js" | head -n1)
+    
+    if [ -z "$js_filename" ]; then
+        echo -e "${RED}× 未找到匹配的JS文件名${NC}"
+        return 1
+    fi
+    
+    # 构建完整路径
+    local target_js="${MOVIE_DIR}/${js_filename}"
+    if [ ! -f "$target_js" ]; then
+        echo -e "${RED}× 目标文件不存在: ${target_js}${NC}"
+        return 1
+    fi
+    
+    safe_replace "$target_js" "$MOVIE_BG_MARKER" "$value"
+    echo -e "${GREEN}✓ 修改的文件: ${NC}$target_js"
+}
+
+# ==================== 菜单函数区 ====================
+
+# 预设主题菜单
+show_preset_menu() {
+    echo -e "\n${YELLOW}===== 预设主题菜单 =====${NC}"
+    echo -e "1. 高达00"
+    echo -e "2. 初音未来"
+    echo -e "3. 钢之炼金术师"
+    echo -e "4. 海贼王"
+    echo -e "5. JOJO的奇妙冒险"
+    echo -e "6. 新世纪福音战士"
+    echo -e "0. 返回主菜单"
+    echo -e "${YELLOW}==================${NC}"
+}
+
+# 透明度菜单
+show_touming_menu() {
+    echo -e "\n${YELLOW}===== 透明度菜单 =====${NC}"
+    echo -e "1. 修改飞牛登录框透明度"
+    echo -e "2. 修改影视登录框透明度"
+    echo -e "0. 返回主菜单"
+    echo -e "${YELLOW}==================${NC}"
+}
+
+# 飞牛影视二级菜单
+show_movie_submenu() {
+    echo -e "\n${YELLOW}===== 飞牛影视修改菜单 =====${NC}"
+    echo -e "1. 修改飞牛影视标题"
+    echo -e "2. 修改飞牛影视LOGO"
+    echo -e "3. 修改飞牛影视背景"
+    echo -e "0. 返回主菜单"
+    echo -e "${YELLOW}======================${NC}"
+}
+
+# 影视修改子菜单（用于LOGO和背景的修改方式选择）
+show_movie_file_submenu() {
+    local title="$1"
+    echo -e "\n${YELLOW}===== $title =====${NC}"
+    echo -e "1. 默认：直接修改（使用${RESOURCE_DIR}路径）"
+    echo -e "2. 自定义：输入完整URL路径"
+    echo -e "0. 返回上一级"
+    echo -e "${YELLOW}==================${NC}"
+}
+
+# 子菜单
+show_submenu() {
+    local title="$1"
+    echo -e "\n${YELLOW}===== $title =====${NC}"
+    echo -e "1. 默认：直接修改（使用${RESOURCE_DIR}路径）"
+    echo -e "2. 自定义：输入完整URL路径"
+    echo -e "0. 返回主菜单"
+    echo -e "${YELLOW}==================${NC}"
+}
+
+# 持久化处理菜单
+show_persistence_menu() {
+    echo -e "\n${YELLOW}===== 选择是否保存脚本设置 =====${NC}"
+    echo -e "1. 是，重启后保持个性化设置"
+    echo -e "2. 否，重启后还原飞牛官方设置"
+    echo -e "0. 返回主菜单"
+    echo -e "${YELLOW}=============================${NC}"
+}
+
+# 主菜单
+show_menu() {
+    echo -e "\n${YELLOW}==== 肥牛定制化脚本v1.12 by 米恋泥 ====${NC}"
+    echo -e "1. 选择预设主题（小白推荐）"
+    echo -e "2. 修改登录界面背景图片"
+    echo -e "3. 修改设备信息logo图片"
+    echo -e "4. 修改登录界面logo图片"
+    echo -e "5. 修改飞牛网页标题"
+    echo -e "6. 修改登录框透明度"
+    echo -e "7. 修改飞牛影视界面"
+    echo -e "8. 选择是否保存脚本设置"
+    echo -e "0. 退出"
+    echo -e "${YELLOW}========================================${NC}"
+}
+
+# ==================== 主执行流程 ====================
+
+main() {
+    # 初始化检查
+    check_root
+    check_resource_dir
+    init_backup_dir  # 初始化备份目录
+    
+    if [ ! -d "$TARGET_DIR" ]; then
+        echo -e "${RED}错误: 目标目录不存在 $TARGET_DIR${NC}" >&2
+        exit 1
+    fi
+
+    while true; do
+        show_menu
+        read -p "请选择主菜单操作 (0-8): " main_choice
+        
+        case "$main_choice" in
+            4)  # 修改登录界面logo图片
+                while true; do
+                    show_submenu "修改登录界面logo图片"
+                    read -p "请选择修改方式 (0-2) [默认1]: " sub_choice
+                    sub_choice=${sub_choice:-1}
+                    
+                    case "$sub_choice" in
+                        1|2) modify_login_logo "$sub_choice"; break ;;
+                        0) break ;;
+                        *) echo -e "${RED}无效选择，请重新输入${NC}" ;;
+                    esac
+                done
+                ;;
+            2)  # 修改登录界面背景图片
+                while true; do
+                    show_submenu "修改登录界面背景图片"
+                    read -p "请选择修改方式 (0-2) [默认1]: " sub_choice
+                    sub_choice=${sub_choice:-1}
+                    
+                    case "$sub_choice" in
+                        1|2) modify_login_bg "$sub_choice"; break ;;
+                        0) break ;;
+                        *) echo -e "${RED}无效选择，请重新输入${NC}" ;;
+                    esac
+                done
+                ;;
+            3)  # 修改设备信息logo图片
+                while true; do
+                    show_submenu "修改设备信息logo图片"
+                    read -p "请选择修改方式 (0-2) [默认1]: " sub_choice
+                    sub_choice=${sub_choice:-1}
+                    
+                    case "$sub_choice" in
+                        1|2) modify_device_logo "$sub_choice"; break ;;
+                        0) break ;;
+                        *) echo -e "${RED}无效选择，请重新输入${NC}" ;;
+                    esac
+                done
+                ;;
+            6)  # 修改登录框透明度
+                while true; do
+                    show_touming_menu
+                    read -p "请选择操作 (0-2): " touming_choice
+                    
+                    case "$touming_choice" in
+                        1) handle_flying_bee_transparency; break ;;
+                        2) handle_movie_transparency; break ;;
+                        0) break ;;
+                        *) echo -e "${RED}无效选择，请重新输入${NC}" ;;
+                    esac
+                done
+                ;;
+            5)  # 修改飞牛网页标题
+                modify_web_title
+                ;;
+            1)  # 选择预设主题
+                while true; do
+                    show_preset_menu
+                    read -p "请选择预设主题 (0-6): " preset_choice
+                    
+                    case "$preset_choice" in
+                        1) apply_gundam_theme; break ;;
+                        2) apply_miku_theme; break ;;
+                        3) apply_gzljss_theme; break ;;
+                        4) apply_haizeiwang_theme; break ;;
+                        5) apply_jojo_theme; break ;;
+                        6) apply_eva_theme; break ;;
+                        0) break ;;
+                        *) echo -e "${RED}无效选择，请重新输入${NC}" ;;
+                    esac
+                done
+                ;;
+            7)  # 飞牛影视菜单
+                while true; do
+                    show_movie_submenu
+                    read -p "请选择飞牛影视修改操作 (0-3): " movie_choice
+                    
+                    case "$movie_choice" in
+                        1)  # 修改飞牛影视标题
+                            modify_movie_title
+                            break 
+                            ;;
+                        2)  # 修改飞牛影视LOGO
+                            while true; do
+                                show_movie_file_submenu "修改飞牛影视LOGO"
+                                read -p "请选择修改方式 (0-2) [默认1]: " sub_choice
+                                sub_choice=${sub_choice:-1}
+                                
+                                case "$sub_choice" in
+                                    1|2) modify_movie_logo "$sub_choice"; break ;;
+                                    0) break ;;
+                                    *) echo -e "${RED}无效选择，请重新输入${NC}" ;;
+                                esac
+                            done
+                            break 
+                            ;;
+                        3)  # 修改飞牛影视背景
+                            while true; do
+                                show_movie_file_submenu "修改飞牛影视背景"
+                                read -p "请选择修改方式 (0-2) [默认1]: " sub_choice
+                                sub_choice=${sub_choice:-1}
+                                
+                                case "$sub_choice" in
+                                    1|2) modify_movie_bg "$sub_choice"; break ;;
+                                    0) break ;;
+                                    *) echo -e "${RED}无效选择，请重新输入${NC}" ;;
+                                esac
+                            done
+                            break 
+                            ;;
+                        0) break ;;
+                        *) echo -e "${RED}无效选择，请重新输入${NC}" ;;
+                    esac
+                done
+                ;;
+            8)  # 选择是否保存脚本设置菜单
+                while true; do
+                    show_persistence_menu
+                    read -p "选择是否保存脚本设置 (0-2): " persistence_choice
+                    
+                    case "$persistence_choice" in
+                        1) add_persistence; break ;;
+                        2) remove_persistence; break ;;
+                        0) break ;;
+                        *) echo -e "${RED}无效选择，请重新输入${NC}" ;;
+                    esac
+                done
+                ;;
+            0)  # 退出
+                exit 0 ;;
+            *) 
+                echo -e "${RED}无效选择，请重新输入${NC}" ;;
+        esac
+    done
+}
+
+# 启动主程序
+main
