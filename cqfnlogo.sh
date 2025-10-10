@@ -231,17 +231,33 @@ find_login_form_js() {
     return 0
 }
 
-# 添加持久化处理到启动项（Debian 12 systemd方式）
 add_persistence() {
     # 创建恢复脚本
     cat << 'EOF' > "$STARTUP_SCRIPT"
 #!/bin/bash
 BACKUP_DIR="/usr/cqshbak"
 BACKUP_RECORD_SUFFIX=".txt"
+RESOURCE_BACKUP_NAME="resource_dir_backup"
+RESOURCE_RECORD_FILE="${BACKUP_DIR}/${RESOURCE_BACKUP_NAME}${BACKUP_RECORD_SUFFIX}"
 
+# 先恢复资源文件夹
+if [ -f "$RESOURCE_RECORD_FILE" ]; then
+    original_resource_dir=$(cat "$RESOURCE_RECORD_FILE")
+    resource_backup_path="${BACKUP_DIR}/${RESOURCE_BACKUP_NAME}"
+    
+    if [ -d "$resource_backup_path" ] && [ -n "$original_resource_dir" ]; then
+        # 创建原始目录（如果不存在）
+        mkdir -p "$(dirname "$original_resource_dir")"
+        # 恢复整个资源文件夹
+        cp -rf "$resource_backup_path" "$original_resource_dir"
+        echo "Restored resource directory to: $original_resource_dir"
+    fi
+fi
+
+# 恢复其他文件
 if [ -d "$BACKUP_DIR" ]; then
-    # 查找所有备份文件（排除记录文件）
-    find "$BACKUP_DIR" -type f ! -name "*$BACKUP_RECORD_SUFFIX" | while read -r backup_file; do
+    # 查找所有备份文件（排除记录文件和资源文件夹备份）
+    find "$BACKUP_DIR" -type f ! -name "*$BACKUP_RECORD_SUFFIX" ! -path "$BACKUP_DIR/$RESOURCE_BACKUP_NAME/*" | while read -r backup_file; do
         # 获取带路径标识的文件名
         base_name=$(basename "$backup_file")
         record_file="${BACKUP_DIR}/${base_name}${BACKUP_RECORD_SUFFIX}"
@@ -259,6 +275,22 @@ if [ -d "$BACKUP_DIR" ]; then
     done
 fi
 EOF
+
+    # 确保备份目录存在
+    mkdir -p "$BACKUP_DIR"
+    
+    # 复制整个资源文件夹到备份目录
+    if [ -d "${BASE_DIR}/${RESOURCE_DIR}" ]; then
+        echo -e "${BLUE}正在备份资源文件夹到 $BACKUP_DIR...${NC}"
+        resource_backup_path="${BACKUP_DIR}/resource_dir_backup"
+        # 复制整个资源文件夹
+        cp -rf "${BASE_DIR}/${RESOURCE_DIR}" "$resource_backup_path"
+        # 记录原始资源文件夹路径
+        echo "${BASE_DIR}/${RESOURCE_DIR}" > "${BACKUP_DIR}/resource_dir_backup${BACKUP_RECORD_SUFFIX}"
+        echo -e "${GREEN}✓ 资源文件夹备份完成${NC}"
+    else
+        echo -e "${YELLOW}⚠️ 资源文件夹 ${BASE_DIR}/${RESOURCE_DIR} 不存在，跳过备份${NC}"
+    fi
 
     # 设置脚本权限
     chmod +x "$STARTUP_SCRIPT" || {
@@ -313,6 +345,7 @@ EOF
     echo -e "${GREEN}✓ 持久化处理已添加到系统服务（已配置100秒延迟生效）${NC}"
     echo -e "${GREEN}✓ 服务名称: cqshbak.service${NC}"
 }
+
 
 # 移除启动项中的持久化处理
 remove_persistence() {
@@ -409,16 +442,61 @@ replace_favicon() {
 modify_login_logo() {
     local mode="$1"
     local value=""
+    local local_filename="login_logo.png"
+    local local_path="${BASE_DIR}/${RESOURCE_DIR}/${local_filename}"
+    local local_relative_path="${RESOURCE_DIR}/${local_filename}"
+    
+    # 下载图片到本地资源目录的函数
+    download_image() {
+        local url="$1"
+        local path="$2"
+        
+        # 检查资源目录
+        check_resource_dir
+                
+        local temp_file=$(mktemp)
+        echo -e "${BLUE}正在下载 $local_filename...${NC}"
+        
+        if curl -s -f -o "$temp_file" "$url"; then
+            if mv -f "$temp_file" "$path"; then
+                chmod 644 "$path"
+                echo -e "${GREEN}✓ 图片已保存到本地: $path${NC}"
+                return 0
+            else
+                echo -e "${NEON_RED}✗ 无法移动文件到资源目录${NC}"
+                rm -f "$temp_file"
+                return 1
+            fi
+        else
+            echo -e "${NEON_RED}✗ 下载失败，请检查URL有效性: $url${NC}"
+            rm -f "$temp_file"
+            return 1
+        fi
+    }
     
     case "$mode" in
-        1) value="${RESOURCE_DIR}/login_logo.png" ;;
+        1) 
+            value="$local_relative_path"
+            # 检查本地文件是否存在
+            if [ ! -f "$local_path" ]; then
+                echo -e "${YELLOW}⚠️ 本地文件不存在: $local_path${NC}"
+                return 0
+            fi
+            ;;
         2) 
             while true; do
-                value=$(prompt_input "请输入登录logo图片URL")
-                if [ -z "$value" ]; then
+                local url=$(prompt_input "请输入登录logo图片URL")
+                if [ -z "$url" ]; then
                     echo -e "${YELLOW}⚠️ 未输入URL，跳过修改${NC}"
                     return
-                elif validate_url "$value"; then
+                elif validate_url "$url"; then
+                    # 下载图片
+                    if download_image "$url" "$local_path"; then
+                        value="$local_relative_path"
+                    else
+                        echo -e "${YELLOW}⚠️ 下载失败，取消修改${NC}"
+                        return 1
+                    fi
                     break
                 else
                     echo -e "${NEON_RED}✗ 无效的URL格式，请重新输入${NC}"
@@ -439,16 +517,61 @@ modify_login_logo() {
 modify_login_bg() {
     local mode="$1"
     local value=""
+    local local_filename="login_bg.jpg"
+    local local_path="${BASE_DIR}/${RESOURCE_DIR}/${local_filename}"
+    local local_relative_path="${RESOURCE_DIR}/${local_filename}"
+    
+    # 下载图片到本地资源目录的函数
+    download_image() {
+        local url="$1"
+        local path="$2"
+        
+        # 检查资源目录
+        check_resource_dir
+                
+        local temp_file=$(mktemp)
+        echo -e "${BLUE}正在下载 $local_filename...${NC}"
+        
+        if curl -s -f -o "$temp_file" "$url"; then
+            if mv -f "$temp_file" "$path"; then
+                chmod 644 "$path"
+                echo -e "${GREEN}✓ 图片已保存到本地: $path${NC}"
+                return 0
+            else
+                echo -e "${NEON_RED}✗ 无法移动文件到资源目录${NC}"
+                rm -f "$temp_file"
+                return 1
+            fi
+        else
+            echo -e "${NEON_RED}✗ 下载失败，请检查URL有效性: $url${NC}"
+            rm -f "$temp_file"
+            return 1
+        fi
+    }
     
     case "$mode" in
-        1) value="${RESOURCE_DIR}/login_bg.jpg" ;;
+        1) 
+            value="$local_relative_path"
+            # 检查本地文件是否存在
+            if [ ! -f "$local_path" ]; then
+                echo -e "${YELLOW}⚠️ 本地文件不存在: $local_path${NC}"
+                return 0
+            fi
+            ;;
         2) 
             while true; do
-                value=$(prompt_input "请输入登录背景图片URL")
-                if [ -z "$value" ]; then
+                local url=$(prompt_input "请输入登录背景图片URL")
+                if [ -z "$url" ]; then
                     echo -e "${YELLOW}⚠️ 未输入URL，跳过修改${NC}"
                     return
-                elif validate_url "$value"; then
+                elif validate_url "$url"; then
+                    # 下载图片
+                    if download_image "$url" "$local_path"; then
+                        value="$local_relative_path"
+                    else
+                        echo -e "${YELLOW}⚠️ 下载失败，取消修改${NC}"
+                        return 1
+                    fi
                     break
                 else
                     echo -e "${NEON_RED}✗ 无效的URL格式，请重新输入${NC}"
@@ -469,16 +592,61 @@ modify_login_bg() {
 modify_device_logo() {
     local mode="$1"
     local value=""
+    local local_filename="fnlogo.png"
+    local local_path="${BASE_DIR}/${RESOURCE_DIR}/${local_filename}"
+    local local_relative_path="${RESOURCE_DIR}/${local_filename}"
+    
+    # 下载图片到本地资源目录的函数
+    download_image() {
+        local url="$1"
+        local path="$2"
+        
+        # 检查资源目录
+        check_resource_dir
+               
+        local temp_file=$(mktemp)
+        echo -e "${BLUE}正在下载 $local_filename...${NC}"
+        
+        if curl -s -f -o "$temp_file" "$url"; then
+            if mv -f "$temp_file" "$path"; then
+                chmod 644 "$path"
+                echo -e "${GREEN}✓ 图片已保存到本地: $path${NC}"
+                return 0
+            else
+                echo -e "${NEON_RED}✗ 无法移动文件到资源目录${NC}"
+                rm -f "$temp_file"
+                return 1
+            fi
+        else
+            echo -e "${NEON_RED}✗ 下载失败，请检查URL有效性: $url${NC}"
+            rm -f "$temp_file"
+            return 1
+        fi
+    }
     
     case "$mode" in
-        1) value="${RESOURCE_DIR}/fnlogo.png" ;;
+        1) 
+            value="$local_relative_path"
+            # 检查本地文件是否存在
+            if [ ! -f "$local_path" ]; then
+                echo -e "${YELLOW}⚠️ 本地文件不存在: $local_path${NC}"
+                return 0
+            fi
+            ;;
         2) 
             while true; do
-                value=$(prompt_input "请输入设备logo图片URL")
-                if [ -z "$value" ]; then
+                local url=$(prompt_input "请输入设备logo图片URL")
+                if [ -z "$url" ]; then
                     echo -e "${YELLOW}⚠️ 未输入URL，跳过修改${NC}"
                     return
-                elif validate_url "$value"; then
+                elif validate_url "$url"; then
+                    # 下载图片
+                    if download_image "$url" "$local_path"; then
+                        value="$local_relative_path"
+                    else
+                        echo -e "${YELLOW}⚠️ 下载失败，取消修改${NC}"
+                        return 1
+                    fi
                     break
                 else
                     echo -e "${NEON_RED}✗ 无效的URL格式，请重新输入${NC}"
@@ -715,30 +883,77 @@ apply_guimie_theme() {
 }
 
 # 应用主题的通用函数
-# 参数: login_logo, login_bg, device_logo
+# 参数: login_logo_url, login_bg_url, device_logo_url
 apply_theme() {
-    local login_logo="$1"
-    local login_bg="$2"
-    local device_logo="$3"
+    local login_logo_url="$1"
+    local login_bg_url="$2"
+    local device_logo_url="$3"
     
-    # 修改登录logo
+    # 定义本地保存的文件名
+    local login_logo_name="login_logo.png"
+    local login_bg_name="login_bg.jpg"
+    local device_logo_name="device_logo.png"
+    
+    # 本地资源完整路径
+    local login_logo_path="${BASE_DIR}/${RESOURCE_DIR}/${login_logo_name}"
+    local login_bg_path="${BASE_DIR}/${RESOURCE_DIR}/${login_bg_name}"
+    local device_logo_path="${BASE_DIR}/${RESOURCE_DIR}/${device_logo_name}"
+    
+    # 本地引用路径（相对目标文件的路径）
+    local login_logo_local="${RESOURCE_DIR}/${login_logo_name}"
+    local login_bg_local="${RESOURCE_DIR}/${login_bg_name}"
+    local device_logo_local="${RESOURCE_DIR}/${device_logo_name}"
+
+    # 下载图片到本地资源目录的函数
+    download_image() {
+        local url="$1"
+        local local_path="$2"
+        local filename=$(basename "$local_path")
+                
+        # 临时文件存储
+        local temp_file=$(mktemp)
+        
+        echo -e "${BLUE}正在下载 $filename...${NC}"
+        if curl -s -f -o "$temp_file" "$url"; then
+            # 移动到资源目录并设置权限
+            if mv -f "$temp_file" "$local_path"; then
+                chmod 644 "$local_path"
+                echo -e "${GREEN}✓ 图片已保存到本地: $local_path${NC}"
+                return 0
+            else
+                echo -e "${NEON_RED}✗ 无法移动文件到资源目录${NC}"
+                rm -f "$temp_file"
+                return 1
+            fi
+        else
+            echo -e "${NEON_RED}✗ 下载失败，请检查URL有效性: $url${NC}"
+            rm -f "$temp_file"
+            return 1
+        fi
+    }
+
+    # 下载所有主题图片到本地
+    download_image "$login_logo_url" "$login_logo_path"
+    download_image "$login_bg_url" "$login_bg_path"
+    download_image "$device_logo_url" "$device_logo_path"
+
+    # 修改登录logo（使用本地路径）
     local login_file=$(find_login_form_js)
     if [ -n "$login_file" ] && [ -f "$login_file" ]; then
-        safe_replace "$login_file" "$LOGIN_LOGO_MARKER" "$login_logo"
+        safe_replace "$login_file" "$LOGIN_LOGO_MARKER" "$login_logo_local"
     fi
     
-    # 修改登录背景
+    # 修改登录背景（使用本地路径）
     if [ -n "$login_file" ] && [ -f "$login_file" ]; then
-        safe_replace "$login_file" "$LOGIN_BG_MARKER" "$login_bg"
+        safe_replace "$login_file" "$LOGIN_BG_MARKER" "$login_bg_local"
     fi
     
-    # 修改设备logo
+    # 修改设备logo（使用本地路径）
     local largest_js=$(find_largest_file "$TARGET_DIR" "*.js")
     if [ -n "$largest_js" ] && [ -f "$largest_js" ]; then
-        safe_replace "$largest_js" "$DEVICE_LOGO_MARKER" "$device_logo"
+        safe_replace "$largest_js" "$DEVICE_LOGO_MARKER" "$device_logo_local"
     fi
 }
-
 # ==================== 飞牛影视相关功能 ====================
 
 # 修改飞牛影视标题
@@ -776,16 +991,57 @@ modify_movie_title() {
 modify_movie_logo() {
     local mode="$1"
     local value=""
+    local local_filename="movie_logo.png"
+    local local_path="${BASE_DIR}/${RESOURCE_DIR}/${local_filename}"
+    local local_relative_path="/${RESOURCE_DIR}/${local_filename}"  # 保持原模式1的路径格式
+    
+    # 下载图片到本地资源目录的函数
+    download_image() {
+        local url="$1"
+        local path="$2"     
+        local temp_file=$(mktemp)
+        echo -e "${BLUE}正在下载 $local_filename...${NC}"
+        
+        if curl -s -f -o "$temp_file" "$url"; then
+            if mv -f "$temp_file" "$path"; then
+                chmod 644 "$path"
+                echo -e "${GREEN}✓ 图片已保存到本地: $path${NC}"
+                return 0
+            else
+                echo -e "${NEON_RED}✗ 无法移动文件到资源目录${NC}"
+                rm -f "$temp_file"
+                return 1
+            fi
+        else
+            echo -e "${NEON_RED}✗ 下载失败，请检查URL有效性: $url${NC}"
+            rm -f "$temp_file"
+            return 1
+        fi
+    }
     
     case "$mode" in
-        1) value="/${RESOURCE_DIR}/movie_logo.png" ;;
+        1) 
+            value="$local_relative_path"
+            # 检查本地文件是否存在
+            if [ ! -f "$local_path" ]; then
+                echo -e "${YELLOW}⚠️ 本地文件不存在: $local_path${NC}"
+                return 0
+            fi
+            ;;
         2) 
             while true; do
-                value=$(prompt_input "请输入飞牛影视LOGO图片URL")
-                if [ -z "$value" ]; then
+                local url=$(prompt_input "请输入飞牛影视LOGO图片URL")
+                if [ -z "$url" ]; then
                     echo -e "${YELLOW}⚠️ 未输入URL，跳过修改${NC}"
                     return
-                elif validate_url "$value"; then
+                elif validate_url "$url"; then
+                    # 下载图片
+                    if download_image "$url" "$local_path"; then
+                        value="$local_relative_path"
+                    else
+                        echo -e "${YELLOW}⚠️ 下载失败，取消修改${NC}"
+                        return 1
+                    fi
                     break
                 else
                     echo -e "${NEON_RED}✗ 无效的URL格式，请重新输入${NC}"
@@ -808,7 +1064,7 @@ modify_movie_logo() {
             tail -n 6 | head -n 1
         )
 
-        # 执行替换
+        # 执行替换（使用本地路径）
         safe_replace "$movie_file" "$MOVIE_LOGO_MARKER1" "$value"
         safe_replace "$movie_file" "$MOVIE_LOGO_MARKER2" "$value"
         
@@ -828,16 +1084,57 @@ modify_movie_logo() {
 modify_movie_bg() {
     local mode="$1"
     local value=""
+    local local_filename="movie_bg.jpg"
+    local local_path="${BASE_DIR}/${RESOURCE_DIR}/${local_filename}"
+    local local_relative_path="/${RESOURCE_DIR}/${local_filename}"  # 保持原模式1的路径格式
+    
+    # 下载图片到本地资源目录的函数
+    download_image() {
+        local url="$1"
+        local path="$2"               
+        local temp_file=$(mktemp)
+        echo -e "${BLUE}正在下载 $local_filename...${NC}"
+        
+        if curl -s -f -o "$temp_file" "$url"; then
+            if mv -f "$temp_file" "$path"; then
+                chmod 644 "$path"
+                echo -e "${GREEN}✓ 图片已保存到本地: $path${NC}"
+                return 0
+            else
+                echo -e "${NEON_RED}✗ 无法移动文件到资源目录${NC}"
+                rm -f "$temp_file"
+                return 1
+            fi
+        else
+            echo -e "${NEON_RED}✗ 下载失败，请检查URL有效性: $url${NC}"
+            rm -f "$temp_file"
+            return 1
+        fi
+    }
     
     case "$mode" in
-        1) value="/${RESOURCE_DIR}/movie_bg.jpg" ;;
+        1) 
+            value="$local_relative_path"
+            # 检查本地文件是否存在
+            if [ ! -f "$local_path" ]; then
+                echo -e "${YELLOW}⚠️ 本地文件不存在: $local_path${NC}"
+                return 0
+            fi
+            ;;
         2) 
             while true; do
-                value=$(prompt_input "请输入飞牛影视背景图片URL")
-                if [ -z "$value" ]; then
+                local url=$(prompt_input "请输入飞牛影视背景图片URL")
+                if [ -z "$url" ]; then
                     echo -e "${YELLOW}⚠️ 未输入URL，跳过修改${NC}"
                     return
-                elif validate_url "$value"; then
+                elif validate_url "$url"; then
+                    # 下载图片
+                    if download_image "$url" "$local_path"; then
+                        value="$local_relative_path"
+                    else
+                        echo -e "${YELLOW}⚠️ 下载失败，取消修改${NC}"
+                        return 1
+                    fi
                     break
                 else
                     echo -e "${NEON_RED}✗ 无效的URL格式，请重新输入${NC}"
@@ -956,7 +1253,7 @@ show_menu() {
 
     echo -e "\n${DARK_BLUE}╔═══════════════════════════════════════════════╗${NC}"
     echo -e "${DARK_BLUE}║${TECH_CYAN}                                               ${DARK_BLUE}║${NC}"
-    echo -e "${DARK_BLUE}║${NEON_GREEN}       ${BOLD}${BLINK}-- 肥牛定制化脚本v1.18 by 米恋泥 --${NO_EFFECT}     ${DARK_BLUE}║${NC}"
+    echo -e "${DARK_BLUE}║${NEON_GREEN}       ${BOLD}${BLINK}-- 肥牛定制化脚本v1.20 by 米恋泥 --${NO_EFFECT}     ${DARK_BLUE}║${NC}"
     echo -e "${DARK_BLUE}║${TECH_CYAN}                                               ${DARK_BLUE}║${NC}"
     echo -e "${DARK_BLUE}╚═══════════════════════════════════════════════╝${NC}"
     
