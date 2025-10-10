@@ -55,6 +55,10 @@ readonly RESOURCE_DIR="userimg"
 readonly INDEX_FILE="${BASE_DIR}/index.html"
 readonly MOVIE_INDEX_FILE="/usr/local/apps/@appcenter/trim.media/static/index.html"
 
+# Favicon路径定义
+readonly FLYING_BEE_FAVICON="/usr/trim/www/favicon.ico"
+readonly MOVIE_FAVICON="/usr/local/apps/@appcenter/trim.media/static/favicon.png"
+
 # Debian 12 启动脚本路径
 readonly STARTUP_SERVICE="/etc/systemd/system/cqshbak.service"
 readonly STARTUP_SCRIPT="/usr/local/bin/cqshbak_restore.sh"
@@ -143,30 +147,27 @@ backup_modified_file() {
         return 1
     fi
 
-    # 获取文件名
+    # 获取文件名（不添加时间戳）
     local file_name=$(basename "$file_path")
-    local backup_file="${BACKUP_DIR}/${file_name}"
-    local record_file="${backup_file}${BACKUP_RECORD_SUFFIX}"
+    local backup_file="${BACKUP_DIR}/${file_name}"  # 直接使用原文件名作为备份文件名
+    local record_file="${BACKUP_DIR}/${file_name}${BACKUP_RECORD_SUFFIX}"
 
-    # 复制文件到备份目录
+    # 复制文件到备份目录（无时间戳，会覆盖同名旧备份）
     if cp -f "$file_path" "$backup_file"; then
         # 记录原始路径
         echo "$file_path" > "$record_file"
-        echo -e "${GREEN}✓ 文件已备份到: ${NC}$backup_file"
+        echo -e "${GREEN}✓ 修改后的文件已备份到: ${NC}$backup_file"
         echo -e "${GREEN}✓ 原始路径记录到: ${NC}$record_file"
     else
         echo -e "${NEON_RED}✗ 文件备份失败: $file_path${NC}"
     fi
 }
 
-# 安全替换函数（带文件备份功能）
+# 安全替换函数（备份修改后的文件）
 safe_replace() {
     local file_path="$1"
     local original="$2"
     local new_value="$3"
-
-    # 备份原始文件
-    backup_modified_file "$file_path"
 
     # 转义特殊字符
     local escaped_value=$(printf '%q' "$new_value" | sed "s/'/'\\\\''/g")
@@ -229,21 +230,27 @@ find_login_form_js() {
 
 # 添加持久化处理到启动项（Debian 12 systemd方式）
 add_persistence() {
-    # 创建恢复脚本
+    # 创建恢复脚本（无时间戳处理版本）
     cat << 'EOF' > "$STARTUP_SCRIPT"
 #!/bin/bash
 BACKUP_DIR="/usr/cqshbak"
 BACKUP_RECORD_SUFFIX=".txt"
 
 if [ -d "$BACKUP_DIR" ]; then
+    # 查找所有备份文件（排除记录文件）
     find "$BACKUP_DIR" -type f ! -name "*$BACKUP_RECORD_SUFFIX" | while read -r backup_file; do
-        record_file="${backup_file}$BACKUP_RECORD_SUFFIX"
+        # 直接获取文件名（无需处理时间戳）
+        base_name=$(basename "$backup_file")
+        record_file="${BACKUP_DIR}/${base_name}${BACKUP_RECORD_SUFFIX}"
+        
         if [ -f "$record_file" ]; then
             original_path=$(cat "$record_file")
             original_dir=$(dirname "$original_path")
+            
             if [ -d "$original_dir" ]; then
+                # 恢复修改后的版本（直接从备份文件复制）
                 cp -f "$backup_file" "$original_path"
-                echo "Restored: $original_path"
+                echo "Restored modified version of: $original_path"
             fi
         fi
     done
@@ -297,7 +304,7 @@ remove_persistence() {
     rm -f "$STARTUP_SERVICE"
     rm -f "$STARTUP_SCRIPT"
     
-    # 新增：删除备份目录中的所有文件（保留原始目录结构）
+    # 清空备份目录中的所有文件（保留原始目录结构）
     if [ -d "$BACKUP_DIR" ]; then
         echo -e "${YELLOW}⚠️ 正在删除备份目录中的文件: $BACKUP_DIR${NC}"
         # 删除目录内所有文件但保留目录本身
@@ -312,6 +319,62 @@ remove_persistence() {
     systemctl daemon-reload
     
     echo -e "${GREEN}✓ 已取消持久化处理，重启后修改将还原${NC}"
+}
+
+# 下载图片并替换favicon，保持原文件权限
+replace_favicon() {
+    local target_path="$1"
+    local file_type="${2:-ico}"  # 默认ico格式
+    local url=""
+    local original_perms=""
+    
+    while true; do
+        url=$(prompt_input "请输入图标URL，建议用64x64或128*128像素的图片")
+        if [ -z "$url" ]; then
+            echo -e "${YELLOW}⚠️ 未输入URL，跳过修改${NC}"
+            return
+        elif validate_url "$url"; then
+            break
+        else
+            echo -e "${NEON_RED}✗ 无效的URL格式，请重新输入${NC}"
+        fi
+    done
+
+    # 临时文件路径
+    local temp_file=$(mktemp)
+    
+    # 保存原始文件权限（如果存在）
+    if [ -f "$target_path" ]; then
+        original_perms=$(stat -c "%a" "$target_path")
+        echo -e "${BLUE}已记录原始文件权限: ${original_perms}${NC}"
+    else
+        # 如果文件不存在，使用默认权限
+        original_perms="644"
+        echo -e "${YELLOW}文件不存在，将使用默认权限: ${original_perms}${NC}"
+    fi
+    
+    # 下载图片
+    echo -e "${BLUE}正在下载图片...${NC}"
+    if curl -s -f -o "$temp_file" "$url"; then
+        # 替换文件
+        if mv -f "$temp_file" "$target_path"; then
+            # 恢复原始文件权限
+            chmod "$original_perms" "$target_path"
+            echo -e "${GREEN}✓ 成功替换图标文件并恢复权限: ${NC}$target_path"
+            echo -e "${GREEN}✓ 权限已设置为: ${original_perms}${NC}"
+            # 备份修改后的文件
+            backup_modified_file "$target_path"
+            return 0
+        else
+            echo -e "${NEON_RED}✗ 替换文件失败${NC}"
+            rm -f "$temp_file"
+            return 1
+        fi
+    else
+        echo -e "${NEON_RED}✗ 下载图片失败，请检查URL是否有效${NC}"
+        rm -f "$temp_file"
+        return 1
+    fi
 }
 
 # ==================== 功能函数区 ====================
@@ -421,11 +484,11 @@ modify_web_title() {
     # 转义特殊字符
     local escaped_title=$(printf '%q' "$new_title" | sed "s/'/'\\\\''/g")
     
-    # 备份并修改index.html中的<title>标签
+    # 修改index.html中的<title>标签
     if [ -f "$INDEX_FILE" ]; then
-        backup_modified_file "$INDEX_FILE"
         if sed -i "s|<title>[^<]*</title>|<title>${escaped_title}</title>|g" "$INDEX_FILE"; then
             echo -e "${GREEN}✓ 网页标题已成功更新: ${NC}$new_title"
+            # 备份修改后的文件
             backup_modified_file "$INDEX_FILE"
         else
             echo -e "${NEON_RED}✗ 标题修改失败（HTML文件），请检查文件权限${NC}"
@@ -434,13 +497,13 @@ modify_web_title() {
         echo -e "${NEON_RED}✗ 未找到文件: ${INDEX_FILE}${NC}"
     fi
     
-    # 备份并修改最大JS文件中的标题内容
+    # 修改最大JS文件中的标题内容
     local largest_js=$(find_largest_file "$TARGET_DIR" "*.js")
     if [ -n "$largest_js" ] && [ -f "$largest_js" ]; then
-        backup_modified_file "$largest_js"
         sed -i.bak 's|\(document\.title=`\)[^`]*|\1'"$escaped_title"'|' "$largest_js"
         echo -e "${GREEN}✓ 修改的JS文件: ${NC}$largest_js"
         echo -e "${GREEN}✓ 修改的文件: ${NC}$INDEX_FILE"
+        # 备份修改后的文件
         backup_modified_file "$largest_js"
         rm -f "${largest_js}.bak"
     fi
@@ -455,9 +518,6 @@ set_transparency() {
     show_header "设置透明度为 ${value}px"
     local largest_css=$(find_largest_file "$dir" "*.css")
     if [ -n "$largest_css" ] && [ -f "$largest_css" ]; then
-        backup_modified_file "$largest_css"
-        # 转义特殊字符，尤其是括号
-        local escaped_pattern=$(printf '%q' "$pattern")
         # 执行替换，匹配模式后的数值部分
         sed -i "s/]{--tw-backdrop-blur: blur(0px);/]{--tw-backdrop-blur: blur(${value}px);/g" "$largest_css"
         sed -i "s/]{--tw-backdrop-blur: blur(5px);/]{--tw-backdrop-blur: blur(${value}px);/g" "$largest_css"
@@ -477,6 +537,7 @@ set_transparency() {
 
         
         echo -e "${GREEN}✓ 完成: 透明度已设置为 ${value}px${NC}"
+        # 备份修改后的文件
         backup_modified_file "$largest_css"
     else
         echo -e "${NEON_RED}✗ 未找到任何CSS文件${NC}"
@@ -536,6 +597,28 @@ handle_movie_transparency() {
             *) echo -e "${NEON_RED}✗ 无效选择，请重新输入${NC}" ;;
         esac
     done
+}
+
+# 修改飞牛网页标签小图标
+modify_flying_bee_favicon() {
+    show_header "修改飞牛网页标签小图标"
+    if [ -f "$FLYING_BEE_FAVICON" ]; then
+        replace_favicon "$FLYING_BEE_FAVICON" "ico"
+    else
+        echo -e "${YELLOW}⚠️ 飞牛网页图标文件不存在，将创建新文件: $FLYING_BEE_FAVICON${NC}"
+        replace_favicon "$FLYING_BEE_FAVICON" "ico"
+    fi
+}
+
+# 修改影视网页标签小图标
+modify_movie_favicon() {
+    show_header "修改影视网页标签小图标"
+    if [ -f "$MOVIE_FAVICON" ]; then
+        replace_favicon "$MOVIE_FAVICON" "png"
+    else
+        echo -e "${YELLOW}⚠️ 影视网页图标文件不存在，将创建新文件: $MOVIE_FAVICON${NC}"
+        replace_favicon "$MOVIE_FAVICON" "png"
+    fi
 }
 
 # ==================== 预设主题函数区 ====================
@@ -665,12 +748,12 @@ modify_movie_title() {
     # 转义特殊字符
     local escaped_title=$(printf '%q' "$new_title" | sed "s/'/'\\\\''/g")
     
-    # 备份并修改影视页面index.html中的<title>标签
+    # 修改影视页面index.html中的<title>标签
     if [ -f "$MOVIE_INDEX_FILE" ]; then
-        backup_modified_file "$MOVIE_INDEX_FILE"
         if sed -i "s|<title>[^<]*</title>|<title>${escaped_title}</title>|g" "$MOVIE_INDEX_FILE"; then
             echo -e "${GREEN}✓ 影视页面标题已成功更新: ${NC}$new_title"
             echo -e "${GREEN}✓ 修改的文件: ${NC}$MOVIE_INDEX_FILE"
+            # 备份修改后的文件
             backup_modified_file "$MOVIE_INDEX_FILE"
         else
             echo -e "${NEON_RED}✗ 标题修改失败，请检查文件权限${NC}"
@@ -807,6 +890,15 @@ show_touming_menu() {
     show_separator
 }
 
+# Favicon修改子菜单
+show_favicon_submenu() {
+    show_header "修改浏览器标签小图标"
+    echo -e "1. 修改飞牛网页标签小图标"
+    #echo -e "2. 修改影视网页标签小图标(暂不生效，同样会调用肥牛的favicon.ico)"
+    echo -e "0. 返回主菜单"
+    show_separator
+}
+
 # 飞牛影视二级菜单
 show_movie_submenu() {
     show_header "飞牛影视修改菜单"
@@ -855,7 +947,7 @@ show_menu() {
 
     echo -e "\n${DARK_BLUE}╔═══════════════════════════════════════════════╗${NC}"
     echo -e "${DARK_BLUE}║${TECH_CYAN}                                               ${DARK_BLUE}║${NC}"
-    echo -e "${DARK_BLUE}║${NEON_GREEN}         ${BOLD}${BLINK}肥牛定制化脚本v1.16 by 米恋泥${NO_EFFECT}         ${DARK_BLUE}║${NC}"
+    echo -e "${DARK_BLUE}║${NEON_GREEN}         ${BOLD}${BLINK}肥牛定制化脚本v1.17 by 米恋泥${NO_EFFECT}         ${DARK_BLUE}║${NC}"
     echo -e "${DARK_BLUE}║${TECH_CYAN}                                               ${DARK_BLUE}║${NC}"
     echo -e "${DARK_BLUE}╚═══════════════════════════════════════════════╝${NC}"
     
@@ -867,11 +959,12 @@ show_menu() {
     echo -e "${TECH_YELLOW} 5. 修改飞牛网页标题${NC}"
     echo -e "${TECH_BLUE} 6. 修改登录框透明度${NC}"
     echo -e "${TECH_CYAN} 7. 修改飞牛影视界面${NC}"
-    echo -e "${TECH_GREEN} 8. 选择是否保存脚本设置${NC}"
+    echo -e "${TECH_PURPLE} 8. 修改浏览器标签小图标（favicon.ico）${NC}"
+    echo -e "${TECH_GREEN} 9. 选择是否保存脚本设置${NC}"
     echo -e "${LIGHT_GRAY} 0. 退出${NC}"
     
     show_separator
-    echo -e "${TECH_CYAN}请输入选项 [0-8]: ${NC}\c"
+    echo -e "${TECH_CYAN}请输入选项 [0-9]: ${NC}\c"
 }
 
 # ==================== 主执行流程 ====================
@@ -889,7 +982,7 @@ main() {
 clear
     while true; do     
         show_menu
-        read -p "→ 请选择主菜单操作 (0-8): " main_choice
+        read -p "→ 请选择主菜单操作 (0-9): " main_choice
         
         case "$main_choice" in
             4)  # 修改登录界面logo图片
@@ -950,7 +1043,7 @@ clear
             1)  # 选择预设主题
                 while true; do
                     show_preset_menu
-                    read -p "→ 请选择预设主题 (0-6): " preset_choice
+                    read -p "→ 请选择预设主题 (0-7): " preset_choice
                     
                     case "$preset_choice" in
                         1) apply_gundam_theme; break ;;
@@ -1008,7 +1101,7 @@ clear
                     esac
                 done
                 ;;
-            8)  # 选择是否保存脚本设置菜单
+            9)  # 选择是否保存脚本设置菜单
                 while true; do
                     show_persistence_menu
                     read -p "→ 选择是否保存脚本设置 (0-2): " persistence_choice
@@ -1016,6 +1109,19 @@ clear
                     case "$persistence_choice" in
                         1) add_persistence; break ;;
                         2) remove_persistence; break ;;
+                        0) break ;;
+                        *) echo -e "${NEON_RED}✗ 无效选择，请重新输入${NC}" ;;
+                    esac
+                done
+                ;;
+            8)  # 修改浏览器标签小图标
+                while true; do
+                    show_favicon_submenu
+                    read -p "→ 请选择操作 (0-1): " favicon_choice
+                    
+                    case "$favicon_choice" in
+                        1) modify_flying_bee_favicon; break ;;
+                        #2) modify_movie_favicon; break ;;
                         0) break ;;
                         *) echo -e "${NEON_RED}✗ 无效选择，请重新输入${NC}" ;;
                     esac
