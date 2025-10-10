@@ -233,7 +233,7 @@ find_login_form_js() {
 
 # 添加持久化处理到启动项（Debian 12 systemd方式）
 add_persistence() {
-    # 创建恢复脚本（适配带路径标识的备份文件）
+    # 创建恢复脚本
     cat << 'EOF' > "$STARTUP_SCRIPT"
 #!/bin/bash
 BACKUP_DIR="/usr/cqshbak"
@@ -261,7 +261,10 @@ fi
 EOF
 
     # 设置脚本权限
-    chmod +x "$STARTUP_SCRIPT"
+    chmod +x "$STARTUP_SCRIPT" || {
+        echo -e "${NEON_RED}✗ 设置脚本权限失败${NC}"
+        return 1
+    }
 
     # 创建systemd服务文件
     cat << EOF > "$STARTUP_SERVICE"
@@ -278,18 +281,37 @@ RemainAfterExit=yes
 WantedBy=multi-user.target
 EOF
 
-# 编辑服务文件添加延迟启动配置
-sudo sed -i '/\[Service\]/a ExecStartPre=/bin/sleep 100' /etc/systemd/system/cqshbak.service
+    # 编辑服务文件添加延迟启动配置
+    if ! sudo sed -i '/\[Service\]/a ExecStartPre=/bin/sleep 100' "$STARTUP_SERVICE"; then
+        echo -e "${NEON_RED}✗ 编辑服务文件失败${NC}"
+        return 1
+    fi
 
-# 重新加载系统服务配置
-systemctl daemon-reload
-# 启用服务（开机自启）
-systemctl enable cqshbak.service
-# 启动服务
-systemctl start cqshbak.service
+    # 重新加载系统服务配置
+    echo -e "${BLUE}正在重新加载系统服务配置...${NC}"
+    if ! systemctl daemon-reload; then
+        echo -e "${NEON_RED}✗ 系统服务配置重载失败${NC}"
+        return 1
+    fi
 
-echo -e "${GREEN}✓ 持久化处理已添加到系统服务（已配置100秒延迟生效）${NC}"
-echo -e "${GREEN}✓ 服务名称: cqshbak.service${NC}"
+    # 启用服务（开机自启）
+    echo -e "${BLUE}正在启用服务...${NC}"
+    if ! systemctl enable cqshbak.service; then
+        echo -e "${NEON_RED}✗ 服务启用失败${NC}"
+        return 1
+    fi
+
+    # 启动服务（使用后台方式并增加超时检测）
+    echo -e "${BLUE}正在启动服务（可能需要几秒钟）...${NC}"
+    if ! timeout 30 systemctl start cqshbak.service; then
+        echo -e "${YELLOW}⚠️ 服务启动超时，但已成功设置开机自启${NC}"
+        echo -e "${YELLOW}⚠️ 下次重启时将自动生效${NC}"
+    else
+        echo -e "${GREEN}✓ 服务启动成功${NC}"
+    fi
+
+    echo -e "${GREEN}✓ 持久化处理已添加到系统服务（已配置100秒延迟生效）${NC}"
+    echo -e "${GREEN}✓ 服务名称: cqshbak.service${NC}"
 }
 
 # 移除启动项中的持久化处理
