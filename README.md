@@ -87,6 +87,7 @@ bash -c "$(curl -fsSL https://ghfast.top/https://github.com/IMGZCQ/cqfnsh/blob/m
 
 效果如图：
 
+<img width="830" height="1208" alt="386375097e9bd16a5d05029f7041544b" src="https://github.com/user-attachments/assets/f6e82b64-f71e-4e1e-bea0-4c45e0f9f27b" />
 <img width="312" height="488" alt="020632w7715q900nv097vu" src="https://github.com/user-attachments/assets/6fc22e75-4f01-4c7b-981b-2e93664b6970" />
 <img src="https://github.com/user-attachments/assets/d5a9b85b-bb62-47a0-86a4-a39c7bf6a80f" />
 <img src="https://github.com/user-attachments/assets/e31083e8-4067-43fd-a8fa-c4277236c0f3" />
