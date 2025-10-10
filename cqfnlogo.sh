@@ -57,7 +57,7 @@ readonly MOVIE_INDEX_FILE="/usr/local/apps/@appcenter/trim.media/static/index.ht
 
 # Favicon路径定义
 readonly FLYING_BEE_FAVICON="/usr/trim/www/favicon.ico"
-readonly MOVIE_FAVICON="/usr/local/apps/@appcenter/trim.media/static/favicon.png"
+readonly MOVIE_FAVICON="/usr/local/apps/@appcenter/trim.media/static/static/favicon.ico"
 
 # Debian 12 启动脚本路径
 readonly STARTUP_SERVICE="/etc/systemd/system/cqshbak.service"
@@ -602,6 +602,7 @@ handle_movie_transparency() {
 # 修改飞牛网页标签小图标
 modify_flying_bee_favicon() {
     show_header "修改飞牛网页标签小图标"
+    echo -e "${YELLOW}⚠️ 图标格式不一定要ico，jpe，png都可以！${NC}"
     if [ -f "$FLYING_BEE_FAVICON" ]; then
         replace_favicon "$FLYING_BEE_FAVICON" "ico"
     else
@@ -613,14 +614,14 @@ modify_flying_bee_favicon() {
 # 修改影视网页标签小图标
 modify_movie_favicon() {
     show_header "修改影视网页标签小图标"
+    echo -e "${YELLOW}⚠️ 影视图标必须得标准的ico格式，否则不生效，飞牛的图标则没所谓！${NC}"
     if [ -f "$MOVIE_FAVICON" ]; then
-        replace_favicon "$MOVIE_FAVICON" "png"
+        replace_favicon "$MOVIE_FAVICON" "ico"
     else
         echo -e "${YELLOW}⚠️ 影视网页图标文件不存在，将创建新文件: $MOVIE_FAVICON${NC}"
-        replace_favicon "$MOVIE_FAVICON" "png"
+        replace_favicon "$MOVIE_FAVICON" "ico"
     fi
 }
-
 # ==================== 预设主题函数区 ====================
 
 # 应用高达00主题
@@ -894,7 +895,7 @@ show_touming_menu() {
 show_favicon_submenu() {
     show_header "修改浏览器标签小图标"
     echo -e "1. 修改飞牛网页标签小图标"
-    #echo -e "2. 修改影视网页标签小图标(暂不生效，同样会调用肥牛的favicon.ico)"
+    echo -e "2. 修改影视网页标签小图标"
     echo -e "0. 返回主菜单"
     show_separator
 }
@@ -932,9 +933,10 @@ show_submenu() {
 # 持久化处理菜单
 show_persistence_menu() {
     show_header "选择是否保存脚本设置"
-    echo -e "1. 是，重启后保持个性化设置"
-    echo -e "2. 否，重启后还原飞牛官方设置"
-    echo -e "0. 返回主菜单"
+    echo -e "1. 是，重启后保持个性化设置（系统启动后100秒生效）"
+    echo -e "2. 否，重启后还原飞牛官方设置（卸载清空脚本文件）"
+    echo -e "0. 返回主菜单\n"
+    echo -e "${TECH_YELLOW}注意！ 如果系统更新后或遇到任何问题，请选择2然后重启一次即刻${NC}"
     show_separator
 }
 
@@ -947,7 +949,7 @@ show_menu() {
 
     echo -e "\n${DARK_BLUE}╔═══════════════════════════════════════════════╗${NC}"
     echo -e "${DARK_BLUE}║${TECH_CYAN}                                               ${DARK_BLUE}║${NC}"
-    echo -e "${DARK_BLUE}║${NEON_GREEN}         ${BOLD}${BLINK}肥牛定制化脚本v1.17 by 米恋泥${NO_EFFECT}         ${DARK_BLUE}║${NC}"
+    echo -e "${DARK_BLUE}║${NEON_GREEN}       ${BOLD}${BLINK}-- 肥牛定制化脚本v1.17 by 米恋泥 --${NO_EFFECT}     ${DARK_BLUE}║${NC}"
     echo -e "${DARK_BLUE}║${TECH_CYAN}                                               ${DARK_BLUE}║${NC}"
     echo -e "${DARK_BLUE}╚═══════════════════════════════════════════════╝${NC}"
     
@@ -1121,7 +1123,7 @@ clear
                     
                     case "$favicon_choice" in
                         1) modify_flying_bee_favicon; break ;;
-                        #2) modify_movie_favicon; break ;;
+                        2) modify_movie_favicon; break ;;
                         0) break ;;
                         *) echo -e "${NEON_RED}✗ 无效选择，请重新输入${NC}" ;;
                     esac
