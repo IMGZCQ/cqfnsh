@@ -147,12 +147,15 @@ backup_modified_file() {
         return 1
     fi
 
-    # 获取文件名（不添加时间戳）
+    # 获取文件名和路径，生成唯一标识（替换路径分隔符为下划线）
     local file_name=$(basename "$file_path")
-    local backup_file="${BACKUP_DIR}/${file_name}"  # 直接使用原文件名作为备份文件名
-    local record_file="${BACKUP_DIR}/${file_name}${BACKUP_RECORD_SUFFIX}"
+    local file_dir=$(dirname "$file_path" | tr '/' '_')  # 将路径中的/替换为_
+    local unique_name="${file_dir}_${file_name}"  # 生成如"usr_trim_www_favicon.ico"的唯一名称
+    
+    local backup_file="${BACKUP_DIR}/${unique_name}"
+    local record_file="${BACKUP_DIR}/${unique_name}${BACKUP_RECORD_SUFFIX}"
 
-    # 复制文件到备份目录（无时间戳，会覆盖同名旧备份）
+    # 复制文件到备份目录（使用唯一名称）
     if cp -f "$file_path" "$backup_file"; then
         # 记录原始路径
         echo "$file_path" > "$record_file"
@@ -230,7 +233,7 @@ find_login_form_js() {
 
 # 添加持久化处理到启动项（Debian 12 systemd方式）
 add_persistence() {
-    # 创建恢复脚本（无时间戳处理版本）
+    # 创建恢复脚本（适配带路径标识的备份文件）
     cat << 'EOF' > "$STARTUP_SCRIPT"
 #!/bin/bash
 BACKUP_DIR="/usr/cqshbak"
@@ -239,7 +242,7 @@ BACKUP_RECORD_SUFFIX=".txt"
 if [ -d "$BACKUP_DIR" ]; then
     # 查找所有备份文件（排除记录文件）
     find "$BACKUP_DIR" -type f ! -name "*$BACKUP_RECORD_SUFFIX" | while read -r backup_file; do
-        # 直接获取文件名（无需处理时间戳）
+        # 获取带路径标识的文件名
         base_name=$(basename "$backup_file")
         record_file="${BACKUP_DIR}/${base_name}${BACKUP_RECORD_SUFFIX}"
         
@@ -248,7 +251,7 @@ if [ -d "$BACKUP_DIR" ]; then
             original_dir=$(dirname "$original_path")
             
             if [ -d "$original_dir" ]; then
-                # 恢复修改后的版本（直接从备份文件复制）
+                # 恢复修改后的版本
                 cp -f "$backup_file" "$original_path"
                 echo "Restored modified version of: $original_path"
             fi
