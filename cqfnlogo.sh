@@ -544,22 +544,8 @@ set_transparency() {
     local largest_css=$(find_largest_file "$dir" "*.css")
     if [ -n "$largest_css" ] && [ -f "$largest_css" ]; then
         # 执行替换，匹配模式后的数值部分
-        sed -i "s/]{--tw-backdrop-blur: blur(0px);/]{--tw-backdrop-blur: blur(${value}px);/g" "$largest_css"
-        sed -i "s/]{--tw-backdrop-blur: blur(5px);/]{--tw-backdrop-blur: blur(${value}px);/g" "$largest_css"
-        sed -i "s/]{--tw-backdrop-blur: blur(10px);/]{--tw-backdrop-blur: blur(${value}px);/g" "$largest_css"
-        sed -i "s/]{--tw-backdrop-blur: blur(15px);/]{--tw-backdrop-blur: blur(${value}px);/g" "$largest_css"
-        sed -i "s/]{--tw-backdrop-blur: blur(20px);/]{--tw-backdrop-blur: blur(${value}px);/g" "$largest_css"
-        sed -i "s/]{--tw-backdrop-blur: blur(25px);/]{--tw-backdrop-blur: blur(${value}px);/g" "$largest_css"
-        sed -i "s/]{--tw-backdrop-blur: blur(30px);/]{--tw-backdrop-blur: blur(${value}px);/g" "$largest_css"
-        
-        sed -i "s/un-backdrop-blur:blur(0px);/un-backdrop-blur:blur(${value}px);/g" "$largest_css"
-        sed -i "s/un-backdrop-blur:blur(5px);/un-backdrop-blur:blur(${value}px);/g" "$largest_css"
-        sed -i "s/un-backdrop-blur:blur(10px);/un-backdrop-blur:blur(${value}px);/g" "$largest_css"
-        sed -i "s/un-backdrop-blur:blur(15px);/un-backdrop-blur:blur(${value}px);/g" "$largest_css"
-        sed -i "s/un-backdrop-blur:blur(20px);/un-backdrop-blur:blur(${value}px);/g" "$largest_css"
-        sed -i "s/un-backdrop-blur:blur(25px);/un-backdrop-blur:blur(${value}px);/g" "$largest_css"
-        sed -i "s/un-backdrop-blur:blur(30px);/un-backdrop-blur:blur(${value}px);/g" "$largest_css"
-
+sed -i -E "s/]\{--tw-backdrop-blur: blur\((0|[1-2]?[0-9]|30) *px\);/]\{--tw-backdrop-blur: blur(${value}px);/g" "$largest_css"
+        sed -i -E "s/un-backdrop-blur:blur\((0|[1-2]?[0-9]|30) *px\);/un-backdrop-blur:blur(${value}px);/g" "$largest_css"
         
         echo -e "${GREEN}✓ 完成: 透明度已设置为 ${value}px${NC}"
         # 备份修改后的文件
@@ -573,14 +559,8 @@ set_transparency() {
 show_transparency_menu() {
     local title="$1"
     show_header "$title"
-    echo -e "1. 0px"
-    echo -e "2. 5px"
-    echo -e "3. 10px"
-    echo -e "4. 15px"
-    echo -e "5. 20px"
-    echo -e "6. 25px"
-    echo -e "7. 30px"
-    echo -e "0. 返回上一级"
+    echo -e "请输入透明度值 (0-30，数值越大模糊效果越强)"
+    echo -e "输入 'q' 可返回到上一级菜单"
     show_separator
 }
 
@@ -588,19 +568,20 @@ show_transparency_menu() {
 handle_flying_bee_transparency() {
     while true; do
         show_transparency_menu "飞牛登录框透明度设置"
-        read -p "→ 请选择透明度值 (0-7): " choice
+        read -p "→ 请输入透明度值 (0-30) 或 'q' 返回: " input
         
-        case "$choice" in
-            1) set_transparency "$TARGET_DIR" "$FLYING_BEE_BLUR_PATTERN" "0"; break ;;
-            2) set_transparency "$TARGET_DIR" "$FLYING_BEE_BLUR_PATTERN" "5"; break ;;
-            3) set_transparency "$TARGET_DIR" "$FLYING_BEE_BLUR_PATTERN" "10"; break ;;
-            4) set_transparency "$TARGET_DIR" "$FLYING_BEE_BLUR_PATTERN" "15"; break ;;
-            5) set_transparency "$TARGET_DIR" "$FLYING_BEE_BLUR_PATTERN" "20"; break ;;
-            6) set_transparency "$TARGET_DIR" "$FLYING_BEE_BLUR_PATTERN" "25"; break ;;
-            7) set_transparency "$TARGET_DIR" "$FLYING_BEE_BLUR_PATTERN" "30"; break ;;
-            0) break ;;
-            *) echo -e "${NEON_RED}✗ 无效选择，请重新输入${NC}" ;;
-        esac
+        # 检查是否要返回上一级
+        if [ "$input" = "q" ] || [ "$input" = "Q" ]; then
+            break
+        fi
+        
+        # 验证输入是否为0-30之间的整数
+        if [[ "$input" =~ ^[0-9]+$ ]] && [ "$input" -ge 0 ] && [ "$input" -le 30 ]; then
+            set_transparency "$TARGET_DIR" "$FLYING_BEE_BLUR_PATTERN" "$input"
+            break
+        else
+            echo -e "${NEON_RED}✗ 无效输入，请输入0-30之间的整数或输入'q'返回${NC}"
+        fi
     done
 }
 
@@ -608,19 +589,20 @@ handle_flying_bee_transparency() {
 handle_movie_transparency() {
     while true; do
         show_transparency_menu "影视登录框透明度设置"
-        read -p "→ 请选择透明度值 (0-7): " choice
+        read -p "→ 请输入透明度值 (0-30) 或 'q' 返回: " input
         
-        case "$choice" in
-            1) set_transparency "$MOVIE_DIR" "$MOVIE_BLUR_PATTERN" "0"; break ;;
-            2) set_transparency "$MOVIE_DIR" "$MOVIE_BLUR_PATTERN" "5"; break ;;
-            3) set_transparency "$MOVIE_DIR" "$MOVIE_BLUR_PATTERN" "10"; break ;;
-            4) set_transparency "$MOVIE_DIR" "$MOVIE_BLUR_PATTERN" "15"; break ;;
-            5) set_transparency "$MOVIE_DIR" "$MOVIE_BLUR_PATTERN" "20"; break ;;
-            6) set_transparency "$MOVIE_DIR" "$MOVIE_BLUR_PATTERN" "25"; break ;;
-            7) set_transparency "$MOVIE_DIR" "$MOVIE_BLUR_PATTERN" "30"; break ;;
-            0) break ;;
-            *) echo -e "${NEON_RED}✗ 无效选择，请重新输入${NC}" ;;
-        esac
+        # 检查是否要返回上一级
+        if [ "$input" = "q" ] || [ "$input" = "Q" ]; then
+            break
+        fi
+        
+        # 验证输入是否为0-30之间的整数
+        if [[ "$input" =~ ^[0-9]+$ ]] && [ "$input" -ge 0 ] && [ "$input" -le 30 ]; then
+            set_transparency "$MOVIE_DIR" "$MOVIE_BLUR_PATTERN" "$input"
+            break
+        else
+            echo -e "${NEON_RED}✗ 无效输入，请输入0-30之间的整数或输入'q'返回${NC}"
+        fi
     done
 }
 
@@ -974,7 +956,7 @@ show_menu() {
 
     echo -e "\n${DARK_BLUE}╔═══════════════════════════════════════════════╗${NC}"
     echo -e "${DARK_BLUE}║${TECH_CYAN}                                               ${DARK_BLUE}║${NC}"
-    echo -e "${DARK_BLUE}║${NEON_GREEN}       ${BOLD}${BLINK}-- 肥牛定制化脚本v1.17 by 米恋泥 --${NO_EFFECT}     ${DARK_BLUE}║${NC}"
+    echo -e "${DARK_BLUE}║${NEON_GREEN}       ${BOLD}${BLINK}-- 肥牛定制化脚本v1.18 by 米恋泥 --${NO_EFFECT}     ${DARK_BLUE}║${NC}"
     echo -e "${DARK_BLUE}║${TECH_CYAN}                                               ${DARK_BLUE}║${NC}"
     echo -e "${DARK_BLUE}╚═══════════════════════════════════════════════╝${NC}"
     
