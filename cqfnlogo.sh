@@ -292,6 +292,22 @@ EOF
         echo -e "${YELLOW}⚠️ 资源文件夹 ${BASE_DIR}/${RESOURCE_DIR} 不存在，跳过备份${NC}"
     fi
 
+    # 新增：备份默认壁纸文件
+    local wallpaper_path="/usr/trim/www/static/bg/wallpaper-1.webp"
+    if [ -f "$wallpaper_path" ]; then
+        echo -e "${BLUE}正在备份默认壁纸文件: $wallpaper_path${NC}"
+        # 生成唯一备份文件名（替换路径分隔符为下划线）
+        local wallpaper_backup_name=$(echo "$wallpaper_path" | tr '/' '_')
+        local wallpaper_backup_file="${BACKUP_DIR}/${wallpaper_backup_name}"
+        # 复制文件到备份目录
+        cp -f "$wallpaper_path" "$wallpaper_backup_file"
+        # 记录原始路径
+        echo "$wallpaper_path" > "${BACKUP_DIR}/${wallpaper_backup_name}${BACKUP_RECORD_SUFFIX}"
+        echo -e "${GREEN}✓ 默认壁纸文件已备份到: $wallpaper_backup_file${NC}"
+    else
+        echo -e "${YELLOW}⚠️ 默认壁纸文件不存在: $wallpaper_path，跳过备份${NC}"
+    fi
+
     # 设置脚本权限
     chmod +x "$STARTUP_SCRIPT" || {
         echo -e "${NEON_RED}✗ 设置脚本权限失败${NC}"
@@ -520,6 +536,7 @@ modify_login_bg() {
     local local_filename="login_bg.jpg"
     local local_path="${BASE_DIR}/${RESOURCE_DIR}/${local_filename}"
     local local_relative_path="${RESOURCE_DIR}/${local_filename}"
+    local modify_success=0  # 标记修改是否成功
     
     # 下载图片到本地资源目录的函数
     download_image() {
@@ -584,6 +601,35 @@ modify_login_bg() {
     local login_file=$(find_login_form_js)
     if [ -n "$login_file" ] && [ -f "$login_file" ]; then
         safe_replace "$login_file" "$LOGIN_BG_MARKER" "$value"
+        modify_success=1  # 标记修改成功
+    fi
+
+    # 询问是否应用到默认壁纸
+    if [ $modify_success -eq 1 ]; then
+        echo -e "\n${CYAN}是否把修改的图片同时应用到默认壁纸？（Y or N）${NC}"
+        read -p "请选择: " choice
+        case "$choice" in
+            [Yy])
+                local target_dir="/usr/trim/www/static/bg"
+                local target_file="${target_dir}/wallpaper-1.webp"
+                # 创建目标目录（如果不存在）
+                mkdir -p "$target_dir"
+                # 复制文件并覆盖
+                if cp -f "$local_path" "$target_file"; then
+                    # 设置权限
+                    chmod 644 "$target_file"
+                    echo -e "${GREEN}✓ 已成功将图片应用到默认壁纸: ${target_file}${NC}"
+                else
+                    echo -e "${NEON_RED}✗ 应用到默认壁纸失败，请检查文件权限${NC}"
+                fi
+                ;;
+            [Nn])
+                echo -e "${YELLOW}⚠️ 已取消应用到默认壁纸${NC}"
+                ;;
+            *)
+                echo -e "${YELLOW}⚠️ 无效输入，已取消应用到默认壁纸${NC}"
+                ;;
+        esac
     fi
 }
 
@@ -1253,7 +1299,7 @@ show_menu() {
 
     echo -e "\n${DARK_BLUE}╔═══════════════════════════════════════════════╗${NC}"
     echo -e "${DARK_BLUE}║${TECH_CYAN}                                               ${DARK_BLUE}║${NC}"
-    echo -e "${DARK_BLUE}║${NEON_GREEN}       ${BOLD}${BLINK}-- 肥牛定制化脚本v1.20 by 米恋泥 --${NO_EFFECT}     ${DARK_BLUE}║${NC}"
+    echo -e "${DARK_BLUE}║${NEON_GREEN}       ${BOLD}${BLINK}-- 肥牛定制化脚本v1.21 by 米恋泥 --${NO_EFFECT}     ${DARK_BLUE}║${NC}"
     echo -e "${DARK_BLUE}║${TECH_CYAN}                                               ${DARK_BLUE}║${NC}"
     echo -e "${DARK_BLUE}╚═══════════════════════════════════════════════╝${NC}"
     
@@ -1268,7 +1314,6 @@ show_menu() {
     echo -e "${TECH_PURPLE} 8. 修改浏览器标签小图标（favicon.ico）${NC}"
     echo -e "${TECH_GREEN} 9. 选择是否保存脚本设置${NC}"
     echo -e "${LIGHT_GRAY} 0. 退出${NC}"
-    
     show_separator
     echo -e "${TECH_CYAN}请输入选项 [0-9]: ${NC}\c"
 }
