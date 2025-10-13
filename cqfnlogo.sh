@@ -725,17 +725,16 @@ modify_web_title() {
     
     # 修改index.html中的<title>标签
 if [ -f "$INDEX_FILE" ]; then
-    # 以字符串匹配处理，清空</head>到<body>之间的内容并添加指定脚本
+    # 确保中文变量正确处理，不添加多余转义
     if sed -i -e '/<\/head>/,/<body>/ {
-        # 保留</head>和<body>本身，删除中间所有内容
         /<\/head>/!{ /<body>/!d; }
-        # 在</head>后面添加目标脚本
+        # 直接使用变量，不添加额外转义符，确保中文原样输出
         /<\/head>/a <script>window.onload = function() {document.title = "'"${escaped_title}"'"}</script>
     }' "$INDEX_FILE"; then
-        echo -e "${GREEN}✓ 已成功处理</head>到<body>之间的内容并添加标题设置脚本${NC}"
+        echo -e "${GREEN}✓ 已成功添加含中文标题的脚本，标题: ${NC}${escaped_title}"
         backup_modified_file "$INDEX_FILE"
     else
-        echo -e "${NEON_RED}✗ 处理失败，请检查文件权限或内容格式${NC}"
+        echo -e "${NEON_RED}✗ 中文标题脚本添加失败${NC}"
     fi
 else
     echo -e "${NEON_RED}✗ 未找到文件: ${INDEX_FILE}${NC}"
