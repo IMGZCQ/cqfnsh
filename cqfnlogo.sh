@@ -227,11 +227,10 @@ add_cqfnicon_record() {
        --arg image_url "$local_image" \
        '. + [{ "序号": ($seq | tonumber), "标题": $title, "跳转URL": $jump_url, "图片URL": $image_url }]' \
        "$JSON_FILE" > "$JSON_FILE.tmp" && mv "$JSON_FILE.tmp" "$JSON_FILE"
-
+    apply_cqfnicon_settings
     echo -e "${GRAD_8}✓ 成功添加一只图标，序号：$seq${NC}"
 }
 
-# 删除记录
 delete_cqfnicon_record() {
     local count=$(jq 'length' "$JSON_FILE")
     if [ $count -eq 0 ]; then
@@ -248,13 +247,32 @@ delete_cqfnicon_record() {
         echo -e "${GRAD_17}✗ 请输入有效的数字序号${NC}"
     done
 
-    local exists=$(jq --arg seq "$seq" '.[] | select(.[ "序号" ] == ($seq | tonumber)) | length' "$JSON_FILE" | wc -l)
-    if [ $exists -eq 0 ]; then
+    # 检查记录是否存在并获取对应的图片URL
+    local image_url=$(jq --arg seq "$seq" '.[] | select(.[ "序号" ] == ($seq | tonumber)) | .["图片URL"]' "$JSON_FILE" -r)
+    local exists=$(echo "$image_url" | wc -l)  # 检查是否找到记录
+    if [ $exists -eq 0 ] || [ "$image_url" = "null" ]; then
         echo -e "${GRAD_17}✗ 未找到序号为 $seq 的记录${NC}"
         return 0
     fi
 
+    # 构建图片实际路径（基于BASE_PATH和存储的相对路径）
+    local image_path="$BASE_PATH/$image_url"
+
+    # 删除图片文件
+    if [ -f "$image_path" ]; then
+        if rm -f "$image_path"; then
+            echo -e "${GRAD_8}✓ 已删除对应的图片文件: $image_path${NC}"
+        else
+            echo -e "${GRAD_17}✗ 图片文件删除失败（可能权限不足）: $image_path${NC}"
+            # 即使图片删除失败，仍继续删除记录（可根据需求调整是否终止）
+        fi
+    else
+        echo -e "${GRAD_4}⚠️ 未找到对应的图片文件（可能已被手动删除）: $image_path${NC}"
+    fi
+
+    # 删除JSON中的记录
     jq --arg seq "$seq" 'del(.[] | select(.[ "序号" ] == ($seq | tonumber)))' "$JSON_FILE" > "$JSON_FILE.tmp" && mv "$JSON_FILE.tmp" "$JSON_FILE"
+    apply_cqfnicon_settings
     echo -e "${GRAD_8}✓ 成功删除序号为 $seq 的记录${NC}"
 }
 
@@ -396,11 +414,10 @@ EOF
 
 # cqfnicon子菜单
 show_cqfnicon_menu() {
-    show_header "飞牛自定义图标管理"
+    show_header "自定义飞牛主界面图标"
     echo -e "1. 增加一只图标"
     echo -e "2. 删除一只图标"
     echo -e "3. 查询所有自定义图标记录编号"
-    echo -e "4. 应用设置（选此项才能是飞牛生效）"
     echo -e "0. 返回主菜单"
     show_separator
 }
@@ -428,9 +445,8 @@ run_cqfnicon() {
             1) add_cqfnicon_record ;;
             2) delete_cqfnicon_record ;;
             3) query_cqfnicon_records ;;
-            4) apply_cqfnicon_settings ;;
             0) break ;;
-            *) echo -e "${GRAD_17}✗ 无效的选择，请输入0-4之间的数字${NC}" ;;
+            *) echo -e "${GRAD_17}✗ 无效的选择，请输入0-3之间的数字${NC}" ;;
         esac
     done
 }
@@ -1074,8 +1090,8 @@ if [ -f "$INDEX_FILE" ]; then
     # 确保中文变量正确处理，不添加多余转义
     if sed -i -e '/<\/head>/,/<body>/ {
         /<\/head>/!{ /<body>/!d; }
-        # 直接使用变量，不添加额外转义符，确保中文原样输出
-        /<\/head>/a <script>window.onload = function() {document.title = "'"${escaped_title}"'"}</script>
+        # 使用 addEventListener 替代直接赋值 onload
+        /<\/head>/a <script>window.addEventListener("load", function() {document.title = "'"${escaped_title}"'"});</script>
     }' "$INDEX_FILE"; then
         echo -e "${GRAD_8}✓ 已成功添加含中文标题的脚本，标题: ${NC}${escaped_title}"
         backup_modified_file "$INDEX_FILE"
@@ -1632,11 +1648,11 @@ show_submenu() {
 
 # 持久化处理菜单
 show_persistence_menu() {
-    show_header "选择是否保存脚本设置"
+    show_header "保存脚本设置/卸载清空脚本"
     echo -e "1. 是，重启后保持个性化设置（系统启动后100秒生效）"
     echo -e "2. 否，重启后还原飞牛官方设置（卸载清空脚本文件）"
     echo -e "0. 返回主菜单\n"
-    echo -e "${GRAD_4}注意！ 如果系统更新后或遇到任何问题，请选择2然后重启一次即刻${NC}"
+    echo -e "${GRAD_4}注意！ 如果系统更新后或遇到任何问题，请选择2然后重启一次即可${NC}"
     show_separator
 }
 
@@ -1662,8 +1678,8 @@ show_menu() {
     echo -e "${GRAD_8} 6. 修改登录框透明度${NC}"
     echo -e "${GRAD_9} 7. 修改飞牛影视界面${NC}"
     echo -e "${GRAD_10} 8. 修改浏览器标签小图标（favicon.ico）${NC}"
-    echo -e "${GRAD_11} 9. 自定义飞牛图标管理${NC}"
-    echo -e "${GRAD_14} S. 选择是否保存脚本设置${NC}"
+    echo -e "${GRAD_11} 9. 自定义飞牛主界面图标${NC}"
+    echo -e "${GRAD_14} S. 保存脚本设置/卸载清空脚本${NC}"
     echo -e "${GRAD_16} R. 立即重启系统${NC}"
     echo -e "${GRAD_18} 0. 退出脚本${NC}"
     show_separator
