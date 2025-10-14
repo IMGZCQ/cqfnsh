@@ -408,7 +408,7 @@ EOF
     
     # 清理临时文件
     rm -f "$script_temp"
-    
+    backup_modified_file "$INDEX_FILE"
     echo -e "${GRAD_8}✓ 应用设置完成${NC}"
 }
 
@@ -436,7 +436,7 @@ run_cqfnicon() {
     if ! init_cqfnicon_json; then
         return 0
     fi
-    
+    apply_cqfnicon_settings
     while true; do
         show_cqfnicon_menu
         read -p "→ 请选择操作 (0-4): " choice
@@ -445,6 +445,7 @@ run_cqfnicon() {
             1) add_cqfnicon_record ;;
             2) delete_cqfnicon_record ;;
             3) query_cqfnicon_records ;;
+            4) apply_cqfnicon_settings ;;
             0) break ;;
             *) echo -e "${GRAD_17}✗ 无效的选择，请输入0-3之间的数字${NC}" ;;
         esac
@@ -594,7 +595,7 @@ find_login_form_js() {
 }
 
 add_persistence() {
-    # 创建恢复脚本
+    # 创建恢复脚本（重点修改恢复资源文件夹的逻辑）
     cat << 'EOF' > "$STARTUP_SCRIPT"
 #!/bin/bash
 BACKUP_DIR="/usr/cqshbak"
@@ -602,25 +603,23 @@ BACKUP_RECORD_SUFFIX=".txt"
 RESOURCE_BACKUP_NAME="resource_dir_backup"
 RESOURCE_RECORD_FILE="${BACKUP_DIR}/${RESOURCE_BACKUP_NAME}${BACKUP_RECORD_SUFFIX}"
 
-# 先恢复资源文件夹
+# 先恢复资源文件夹（修复嵌套问题）
 if [ -f "$RESOURCE_RECORD_FILE" ]; then
     original_resource_dir=$(cat "$RESOURCE_RECORD_FILE")
     resource_backup_path="${BACKUP_DIR}/${RESOURCE_BACKUP_NAME}"
     
     if [ -d "$resource_backup_path" ] && [ -n "$original_resource_dir" ]; then
         # 创建原始目录（如果不存在）
-        mkdir -p "$(dirname "$original_resource_dir")"
-        # 恢复整个资源文件夹
-        cp -rf "$resource_backup_path" "$original_resource_dir"
-        echo "Restored resource directory to: $original_resource_dir"
+        mkdir -p "$original_resource_dir"
+        # 恢复备份内容到目标目录（覆盖现有内容，不嵌套目录）
+        cp -rf "$resource_backup_path"/* "$original_resource_dir/"
+        echo "Restored resource files to: $original_resource_dir"
     fi
 fi
 
-# 恢复其他文件
+# 恢复其他文件（保持不变）
 if [ -d "$BACKUP_DIR" ]; then
-    # 查找所有备份文件（排除记录文件和资源文件夹备份）
     find "$BACKUP_DIR" -type f ! -name "*$BACKUP_RECORD_SUFFIX" ! -path "$BACKUP_DIR/$RESOURCE_BACKUP_NAME/*" | while read -r backup_file; do
-        # 获取带路径标识的文件名
         base_name=$(basename "$backup_file")
         record_file="${BACKUP_DIR}/${base_name}${BACKUP_RECORD_SUFFIX}"
         
@@ -629,7 +628,6 @@ if [ -d "$BACKUP_DIR" ]; then
             original_dir=$(dirname "$original_path")
             
             if [ -d "$original_dir" ]; then
-                # 恢复修改后的版本
                 cp -f "$backup_file" "$original_path"
                 echo "Restored modified version of: $original_path"
             fi
@@ -641,12 +639,15 @@ EOF
     # 确保备份目录存在
     mkdir -p "$BACKUP_DIR"
     
-    # 复制整个资源文件夹到备份目录
+    # 复制整个资源文件夹到备份目录（修复备份逻辑，只备份内容）
     if [ -d "${BASE_DIR}/${RESOURCE_DIR}" ]; then
         echo -e "${GRAD_12}正在备份资源文件夹到 $BACKUP_DIR...${NC}"
         resource_backup_path="${BACKUP_DIR}/resource_dir_backup"
-        # 复制整个资源文件夹
-        cp -rf "${BASE_DIR}/${RESOURCE_DIR}" "$resource_backup_path"
+        # 先清空旧备份（避免残留文件干扰）
+        rm -rf "$resource_backup_path"
+        mkdir -p "$resource_backup_path"
+        # 只复制userimg内的内容（包括隐藏文件），不复制文件夹本身
+        cp -rf "${BASE_DIR}/${RESOURCE_DIR}/." "$resource_backup_path/"
         # 记录原始资源文件夹路径
         echo "${BASE_DIR}/${RESOURCE_DIR}" > "${BACKUP_DIR}/resource_dir_backup${BACKUP_RECORD_SUFFIX}"
         echo -e "${GRAD_8}✓ 资源文件夹备份完成${NC}"
@@ -654,16 +655,14 @@ EOF
         echo -e "${GRAD_4}⚠️ 资源文件夹 ${BASE_DIR}/${RESOURCE_DIR} 不存在，跳过备份${NC}"
     fi
 
+    # 后续代码（壁纸备份、服务配置等）保持不变...
     # 新增：备份默认壁纸文件
     local wallpaper_path="/usr/trim/www/static/bg/wallpaper-1.webp"
     if [ -f "$wallpaper_path" ]; then
         echo -e "${GRAD_12}正在备份默认壁纸文件: $wallpaper_path${NC}"
-        # 生成唯一备份文件名（替换路径分隔符为下划线）
         local wallpaper_backup_name=$(echo "$wallpaper_path" | tr '/' '_')
         local wallpaper_backup_file="${BACKUP_DIR}/${wallpaper_backup_name}"
-        # 复制文件到备份目录
         cp -f "$wallpaper_path" "$wallpaper_backup_file"
-        # 记录原始路径
         echo "$wallpaper_path" > "${BACKUP_DIR}/${wallpaper_backup_name}${BACKUP_RECORD_SUFFIX}"
         echo -e "${GRAD_8}✓ 默认壁纸文件已备份到: $wallpaper_backup_file${NC}"
     else
@@ -676,7 +675,7 @@ EOF
         return 0
     }
 
-    # 创建systemd服务文件
+    # 创建systemd服务文件（保持不变）
     cat << EOF > "$STARTUP_SERVICE"
 [Unit]
 Description=CQSHBAK Persistence Service
@@ -691,27 +690,27 @@ RemainAfterExit=yes
 WantedBy=multi-user.target
 EOF
 
-    # 编辑服务文件添加延迟启动配置
+    # 编辑服务文件添加延迟启动配置（保持不变）
     if ! sudo sed -i '/\[Service\]/a ExecStartPre=/bin/sleep 100' "$STARTUP_SERVICE"; then
         echo -e "${GRAD_17}✗ 编辑服务文件失败${NC}"
         return 0
     fi
 
-    # 重新加载系统服务配置
+    # 重新加载系统服务配置（保持不变）
     echo -e "${GRAD_12}正在重新加载系统服务配置...${NC}"
     if ! systemctl daemon-reload; then
         echo -e "${GRAD_17}✗ 系统服务配置重载失败${NC}"
         return 0
     fi
 
-    # 启用服务（开机自启）
+    # 启用服务（保持不变）
     echo -e "${GRAD_12}正在启用服务...${NC}"
     if ! systemctl enable cqshbak.service; then
         echo -e "${GRAD_17}✗ 服务启用失败${NC}"
         return 0
     fi
 
-    # 启动服务（使用后台方式并增加超时检测）
+    # 启动服务（保持不变）
     echo -e "${GRAD_12}正在启动服务（可能需要几秒钟）...${NC}"
     if ! timeout 30 systemctl start cqshbak.service; then
         echo -e "${GRAD_4}⚠️ 服务启动超时，但已成功设置开机自启${NC}"
@@ -723,7 +722,6 @@ EOF
     echo -e "${GRAD_8}✓ 持久化处理已添加到系统服务（已配置100秒延迟生效）${NC}"
     echo -e "${GRAD_8}✓ 服务名称: cqshbak.service${NC}"
 }
-
 
 # 移除启动项中的持久化处理
 remove_persistence() {
@@ -1681,7 +1679,7 @@ show_menu() {
     echo -e "${GRAD_11} 9. 自定义飞牛主界面图标${NC}"
     echo -e "${GRAD_14} S. 保存脚本设置/卸载清空脚本${NC}"
     echo -e "${GRAD_16} R. 立即重启系统${NC}"
-    echo -e "${GRAD_18} 0. 退出脚本${NC}"
+    echo -e "${GRAD_18} 0. 退出脚本(输入i查看作者声明)${NC}"
     show_separator
 }
 
@@ -1852,7 +1850,10 @@ clear
                 done
                 ;;
             0)  # 退出
-                echo -e "${GRAD_4}▲ 脚本已退出，欢迎再次使用~·${NC}\n"
+                echo -e "\n${GRAD_4}▲ 脚本已退出，欢迎再次使用~·${NC}\n"
+                exit 0 ;;
+            I|i)  # 作者声明
+                echo -e "\n${GRAD_13} 作者声明：留着有空再写,拜拜！${NC}\n"
                 exit 0 ;;
             *) 
                 echo -e "${GRAD_17}✗ 无效选择，请重新输入${NC}" ;;
