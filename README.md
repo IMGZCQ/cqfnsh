@@ -58,13 +58,13 @@
 
 - cloudflare:
   ```bash
-  bash -c "$(curl -fsSL sh.on79.cfd/cqfnlogo.sh)"
+  bash -c "$(curl -fSL# sh.on79.cfd/cqfnlogo.sh)"
 - github:
   ```bash
-  bash -c "$(curl -fsSL raw.githubusercontent.com/IMGZCQ/cqfnsh/main/cqfnlogo.sh)"
+  bash -c "$(curl -fSL# raw.githubusercontent.com/IMGZCQ/cqfnsh/main/cqfnlogo.sh)"
 - github加速:
   ```bash
-  bash -c "$(curl -fsSL ghfast.top/github.com/IMGZCQ/cqfnsh/blob/main/cqfnlogo.sh)"
+  bash -c "$(curl -fSL# ghfast.top/github.com/IMGZCQ/cqfnsh/blob/main/cqfnlogo.sh)"
 
 效果如图：
 
