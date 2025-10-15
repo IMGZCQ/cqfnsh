@@ -7,25 +7,25 @@ readonly BACKUP_DIR="/usr/cqshbak"
 readonly BACKUP_RECORD_SUFFIX=".txt"
 
 # 七彩渐变色彩组（18级扩展版：红→绿→蓝→亮紫过渡）
-readonly GRAD_1='\033[38;5;196m'   # 深红（起始色）
-readonly GRAD_2='\033[38;5;202m'   # 红橙
-readonly GRAD_3='\033[38;5;208m'   # 橙色
-readonly GRAD_4='\033[38;5;214m'   # 橙黄
-readonly GRAD_5='\033[38;5;220m'   # 浅黄
-readonly GRAD_6='\033[38;5;226m'   # 纯黄
-readonly GRAD_7='\033[38;5;154m'   # 黄绿
-readonly GRAD_8='\033[38;5;118m'   # 浅绿
-readonly GRAD_9='\033[38;5;46m'    # 纯绿（绿系终点）
-readonly GRAD_10='\033[38;5;47m'   # 青绿色（绿转紫过渡1）
-readonly GRAD_11='\033[38;5;48m'   # 蓝绿色（绿转紫过渡2）
-readonly GRAD_12='\033[38;5;63m'   # 浅靛蓝（紫系起点）
-readonly GRAD_13='\033[38;5;33m'   # 靛蓝（蓝系过渡）
-readonly GRAD_14='\033[38;5;45m'   # 高亮蓝（蓝系提亮）
-readonly GRAD_15='\033[38;5;51m'   # 青蓝（蓝系终点）
-readonly GRAD_16='\033[38;5;105m'  # 淡紫色（紫系过渡1）
-readonly GRAD_17='\033[38;5;197m'  # 亮紫色（紫系过渡2）
-readonly GRAD_18='\033[38;5;201m'  # 超亮紫（终点色，最亮）
-readonly GRAD_RESET='\033[0m'      # 重置色彩
+readonly GRAD_1='\033[38;5;196m' # 亮红色
+readonly GRAD_2='\033[38;5;202m' # 橙红色
+readonly GRAD_3='\033[38;5;208m' # 橙色
+readonly GRAD_4='\033[38;5;214m' # 亮橙色
+readonly GRAD_5='\033[38;5;220m' # 金黄色
+readonly GRAD_6='\033[38;5;226m' # 亮黄色
+readonly GRAD_7='\033[38;5;154m' # 黄绿色
+readonly GRAD_8='\033[38;5;118m' # 亮绿色
+readonly GRAD_9='\033[38;5;46m'  # 翠绿色
+readonly GRAD_10='\033[38;5;47m' # 蓝绿色（青绿色）
+readonly GRAD_11='\033[38;5;48m' # 深青绿色
+readonly GRAD_12='\033[38;5;63m' # 深蓝色（偏紫）
+readonly GRAD_13='\033[38;5;33m' # 紫色（偏红）
+readonly GRAD_14='\033[38;5;45m' # 粉红色（亮粉）
+readonly GRAD_15='\033[38;5;51m' # 玫红色
+readonly GRAD_16='\033[38;5;105m' # 蓝紫色（偏蓝）
+readonly GRAD_17='\033[38;5;197m' # 深红色
+readonly GRAD_18='\033[38;5;201m' # 紫红色（红紫混合）
+readonly GRAD_RESET='\033[0m'    # 重置文本格式（恢复默认颜色、样式）
 
 # 基础色调
 readonly LIGHT_GRAY='\033[0;37m'      # 浅灰文本
@@ -318,9 +318,9 @@ apply_cqfnicon_settings() {
     <script>
     window.onload = function() {
         const targetSelector = 'div.box-border.flex.size-full.flex-col.flex-wrap.place-content-start.items-start.py-base-loose';
-        const maxRetries = 20;
+        const maxRetries = 100;
         let retryCount = 0;
-        const retryInterval = 500;
+        const retryInterval = 2000;
 
         function findTargetElement() {
             return document.querySelector(targetSelector);
