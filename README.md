@@ -64,7 +64,7 @@
   bash -c "$(curl -fSL# raw.githubusercontent.com/IMGZCQ/cqfnsh/main/cqfnlogo.sh)"
 - github加速:
   ```bash
-  bash -c "$(curl -fSL# ghfast.top/github.com/IMGZCQ/cqfnsh/blob/main/cqfnlogo.sh)"
+  bash -c "$(curl -fSL# ghfast.top/github.com/IMGZCQ/cqfnsh/main/cqfnlogo.sh)"
 
 效果如图：
 
