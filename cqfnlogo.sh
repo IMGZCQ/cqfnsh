@@ -1853,7 +1853,9 @@ clear
                 echo -e "\n${GRAD_4}▲ 脚本已退出，欢迎再次使用~·${NC}\n"
                 exit 0 ;;
             I|i)  # 作者声明
-                echo -e "\n${GRAD_13} 作者声明：留着有空再写,拜拜！${NC}\n"
+                # echo -e "\n${GRAD_13} 作者声明：留着有空再写,拜拜！${NC}\n"
+                # 使用 curl 获取并输出内容
+curl -fL# ghfast.top/raw.githubusercontent.com/IMGZCQ/cqfnsh/main/README.md -o - | sed -e '/使用方法/,$d' -e '/^$/d'
                 exit 0 ;;
             *) 
                 echo -e "${GRAD_17}✗ 无效选择，请重新输入${NC}" ;;
