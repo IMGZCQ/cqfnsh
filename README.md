@@ -85,7 +85,7 @@
 
 cloudflare:
 
-bash -c "$(curl -fsSL https://sh.on79.cfd/cqfnlogo.sh)"
+bash -c "$(curl -fsSL sh.on79.cfd/cqfnlogo.sh)"
 
 github：
 
@@ -93,7 +93,7 @@ bash -c "$(curl -fsSL raw.githubusercontent.com/IMGZCQ/cqfnsh/main/cqfnlogo.sh)"
 
 github加速：
 
-bash -c "$(curl -fsSL https://ghfast.top/https://github.com/IMGZCQ/cqfnsh/blob/main/cqfnlogo.sh)"
+bash -c "$(curl -fsSL ghfast.top/github.com/IMGZCQ/cqfnsh/blob/main/cqfnlogo.sh)"
 
 效果如图：
 
