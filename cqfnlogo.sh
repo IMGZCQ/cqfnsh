@@ -313,7 +313,14 @@ query_cqfnicon_records() {
 # 应用设置功能
 apply_cqfnicon_settings() {
     show_header "执行应用设置"
-    cp -rn /usr/cqshbak/resource_dir_backup/* /usr/trim/www/userimg/
+SOURCE_DIR="/usr/cqshbak/resource_dir_backup"
+DEST_DIR="/usr/trim/www/userimg/"
+
+# 检查源目录是否存在
+if [ -d "/usr/cqshbak/resource_dir_backup" ]; then
+    # 源目录存在，执行复制（-r递归，-n不覆盖已存在文件）
+    cp -rn "/usr/cqshbak/resource_dir_backup"/* "/usr/trim/www/userimg/"
+fi
     # 1. 复制JSON文件到目标目录
     echo -e "${GRAD_12}复制配置文件到$IMAGE_DIR...${NC}"
     if cp "$JSON_FILE" "$DEST_JSON"; then
