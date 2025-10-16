@@ -1663,7 +1663,7 @@ show_menu() {
 
     echo -e "\n${GRAD_12}╔═══════════════════════════════════════════╗${NC}"
     echo -e "${GRAD_12}║                                           ${GRAD_12}║${NC}"
-    echo -e "${GRAD_12}║${GRAD_15}    ${BOLD}${BLINK}-- 肥牛定制化脚本v1.30 by 米恋泥 --${NO_EFFECT}    ${GRAD_12}║${NC}"
+    echo -e "${GRAD_12}║${GRAD_15}    ${BOLD}${BLINK}-- 肥牛定制化脚本v1.31 by 米恋泥 --${NO_EFFECT}    ${GRAD_12}║${NC}"
     echo -e "${GRAD_12}║                                           ${GRAD_12}║${NC}"
     echo -e "${GRAD_12}╚═══════════════════════════════════════════╝${NC}"
     
