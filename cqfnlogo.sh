@@ -740,11 +740,11 @@ remove_persistence() {
     
     # 清空备份目录中的所有文件（保留原始目录结构）
 if [ -d "$BACKUP_DIR" ]; then
-    echo -e "${GRAD_4}⚠️ 正在删除备份目录中的直接文件: $BACKUP_DIR${NC}"
+    echo -e "${GRAD_4}⚠️ 正在删除备份目录中的文件: $BACKUP_DIR${NC}"
     # 只删除主目录内的直接文件，不处理子目录及其内容
     find "$BACKUP_DIR" -mindepth 1 -maxdepth 1 -type f -delete
     if [ $? -eq 0 ]; then
-        echo -e "${GRAD_8}✓ 备份目录直接文件已删除（子目录及其内容保留）${NC}"
+        echo -e "${GRAD_8}✓ 备份目录文件已删除${NC}"
     else
         echo -e "${GRAD_17}✗ 备份目录文件删除失败${NC}"
     fi
