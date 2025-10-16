@@ -414,10 +414,10 @@ EOF
 
 # cqfnicon子菜单
 show_cqfnicon_menu() {
-    show_header "自定义飞牛主界面图标"
-    echo -e "1. 增加一只图标"
-    echo -e "2. 删除一只图标"
-    echo -e "3. 查询所有自定义图标记录编号"
+    show_header "自定义飞牛主界面APP图标"
+    echo -e "1. 增加一只APP图标"
+    echo -e "2. 删除一只APP图标"
+    echo -e "3. 查询所有APP图标编号"
     echo -e "0. 返回主菜单"
     show_separator
 }
@@ -1668,6 +1668,7 @@ show_menu() {
     echo -e "${GRAD_12}╚═══════════════════════════════════════════╝${NC}"
     
     # 主菜单选项 - 每个选项使用独特颜色
+    echo -e "\n${BOLD}${GRAD_4}***${GRAD_11}公告:飞牛升级系统后如有不适，请执行脚本S-2重启即可！${GRAD_4}***${NC}\n"
     echo -e "${GRAD_3} 1. 选择预设主题（小白推荐）${NC}"
     echo -e "${GRAD_4} 2. 修改登录界面背景图片${NC}"
     echo -e "${GRAD_5} 3. 修改设备信息logo图片${NC}"
@@ -1676,7 +1677,7 @@ show_menu() {
     echo -e "${GRAD_8} 6. 修改登录框透明度${NC}"
     echo -e "${GRAD_9} 7. 修改飞牛影视界面${NC}"
     echo -e "${GRAD_10} 8. 修改浏览器标签小图标（favicon.ico）${NC}"
-    echo -e "${GRAD_11} 9. 自定义飞牛主界面图标${NC}"
+    echo -e "${GRAD_11} 9. 添加飞牛主界面APP图标${NC}"
     echo -e "${GRAD_14} S. 保存脚本设置/卸载清空脚本${NC}"
     echo -e "${GRAD_16} R. 立即重启系统${NC}"
     echo -e "${GRAD_18} 0. 退出脚本(输入i查看作者声明)${NC}"
