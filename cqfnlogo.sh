@@ -345,7 +345,7 @@ apply_cqfnicon_settings() {
                         const aTag = document.createElement("a");
                         aTag.target = "_blank";
                         aTag.href = item["跳转URL"];
-                        aTag.className = "flex h-[124px] w-[130px] cursor-pointer flex-col items-center justify-center gap-4";
+                        aTag.className = "flex h-[124px] w-[130px] cursor-pointer flex-col items-center justify-center gap-4 no-underline";
                         
                         aTag.innerHTML = `
                             <div class="flex shrink-0 flex-row items-center overflow-hidden">
@@ -356,7 +356,7 @@ apply_cqfnicon_settings() {
                                 </div>
                             </div>
                             <div class="flex h-base-loose shrink-0 items-center justify-center gap-x-2.5 self-stretch px-2.5">
-                                <div class="line-clamp-1 text-white" title="${item["标题"]}" style="text-shadow: rgba(0, 0, 0, 0.2) 0px 1px 6px, rgba(0, 0, 0, 0.5) 0px 0px 4px;">${item["标题"]}</div>
+                                <div class="line-clamp-1 text-white" title="${item["标题"]}" style="text-shadow: rgba(0, 0, 0, 0.2) 0px 1px 6px, rgba(0, 0, 0, 0.5) 0px 0px 4px;font-size: 14px;font-weight: bold;line-height: 1.25;">${item["标题"]}</div>
                             </div>
                         `;
                         
