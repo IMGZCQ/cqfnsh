@@ -185,32 +185,46 @@ download_cqfnicon_image() {
 # 添加记录
 add_cqfnicon_record() {
     local title
-    while true; do
-        read -p "请输入图标标题：" title
-        if [ -n "$title" ]; then
-            break
-        fi
-        echo -e "${GRAD_4}⚠️ 标题不能为空，请重新输入${NC}"
-    done
+while true; do
+    read -p "请输入图标标题（按下回车取消并返回）：" title
+    # 若输入为空（按下回车），则取消操作并返回
+    if [ -z "$title" ]; then
+        echo -e "${GRAD_4}已取消操作${NC}"
+        return 0
+    fi
+    # 输入非空则退出循环，继续后续流程
+    break
+done
 
     local jump_url
-    while true; do
-        read -p "请输入点击图标跳转URL：" jump_url
-        if is_cqfnicon_valid_url "$jump_url"; then
-            break
-        fi
-        echo -e "${GRAD_17}✗ 跳转URL格式无效，请重新输入（需以http/https/ftp开头，且无空格）${NC}"
-    done
+while true; do
+    read -p "请输入点击图标跳转URL（按下回车取消并返回）：" jump_url
+    # 若输入为空（按下回车），则取消操作并返回
+    if [ -z "$jump_url" ]; then
+        echo -e "${GRAD_4}已取消操作${NC}"
+        return 0
+    fi
+    # 验证URL格式是否有效
+    if is_cqfnicon_valid_url "$jump_url"; then
+        break
+    fi
+    echo -e "${GRAD_17}✗ 跳转URL格式无效，请重新输入（需以http/https/ftp开头，且无空格）${NC}"
+done
 
     local image_url
-    while true; do
-        read -p "请输入图标图片文件URL：" image_url
-        if is_cqfnicon_valid_url "$image_url"; then
-            break
-        fi
-        echo -e "${GRAD_17}✗ 图片URL格式无效，请重新输入（需以http/https/ftp开头，且无空格）${NC}"
-        echo -e "${GRAD_4}⚠️ 例如：https://img2.baidu.com/it/u=xxx&fm=xxx${NC}"
-    done
+while true; do
+    read -p "请输入图标图片文件URL（按下回车取消并返回）：" image_url
+    # 若输入为空（按下回车），则取消操作并返回
+    if [ -z "$image_url" ]; then
+        echo -e "${GRAD_4}已取消操作${NC}"
+        return 0
+    fi
+    # 验证图片URL格式是否有效
+    if is_cqfnicon_valid_url "$image_url"; then
+        break
+    fi
+    echo -e "${GRAD_17}✗ 图片URL格式无效，请重新输入（需以http/https/ftp开头，且无空格）${NC}"
+done
 
     echo -e "${GRAD_12}正在下载图片（可能需要几秒，取决于网络）...${NC}"
     local local_image=$(download_cqfnicon_image "$image_url" "$title")
@@ -232,6 +246,7 @@ add_cqfnicon_record() {
 }
 
 delete_cqfnicon_record() {
+    query_cqfnicon_records
     local count=$(jq 'length' "$JSON_FILE")
     if [ $count -eq 0 ]; then
         echo -e "${GRAD_4}⚠️ 没有记录可删除${NC}"
@@ -240,7 +255,13 @@ delete_cqfnicon_record() {
 
     local seq
     while true; do
-        read -p "请输入要删除的图标序号：" seq
+        read -p "请输入要删除的图标序号（按下回车取消并返回）：" seq
+        # 若输入为空（按下回车），直接返回
+        if [ -z "$seq" ]; then
+            echo -e "${GRAD_4}已取消删除操作${NC}"
+            return 0
+        fi
+        # 检查是否为有效数字
         if [[ $seq =~ ^[0-9]+$ ]]; then
             break
         fi
@@ -285,7 +306,7 @@ query_cqfnicon_records() {
     fi
 
     show_header "所有自定义图标记录"
-    jq -r 'sort_by(["序号"])[] | "\(.["序号"]) - \(.["标题"]): \(.["跳转URL"])"' "$JSON_FILE"
+    jq -r 'sort_by(["序号"])[] | "\(.["序号"]) - \(.["标题"]) (\(.["跳转URL"]))"' "$JSON_FILE"
     show_separator
 }
 
@@ -320,7 +341,7 @@ apply_cqfnicon_settings() {
         const targetSelector = 'div.box-border.flex.size-full.flex-col.flex-wrap.place-content-start.items-start.py-base-loose';
         const maxRetries = 100;
         let retryCount = 0;
-        const retryInterval = 2000;
+        const retryInterval = 1500;
 
         function findTargetElement() {
             return document.querySelector(targetSelector);
@@ -1663,7 +1684,7 @@ show_menu() {
 
     echo -e "\n${GRAD_12}╔═══════════════════════════════════════════╗${NC}"
     echo -e "${GRAD_12}║                                           ${GRAD_12}║${NC}"
-    echo -e "${GRAD_12}║${GRAD_15}    ${BOLD}${BLINK}-- 肥牛定制化脚本v1.31 by 米恋泥 --${NO_EFFECT}    ${GRAD_12}║${NC}"
+    echo -e "${GRAD_12}║${GRAD_15}    ${BOLD}${BLINK}-- 肥牛定制化脚本v1.32 by 米恋泥 --${NO_EFFECT}    ${GRAD_12}║${NC}"
     echo -e "${GRAD_12}║                                           ${GRAD_12}║${NC}"
     echo -e "${GRAD_12}╚═══════════════════════════════════════════╝${NC}"
     
@@ -1677,7 +1698,7 @@ show_menu() {
     echo -e "${GRAD_8} 6. 修改登录框透明度${NC}"
     echo -e "${GRAD_9} 7. 修改飞牛影视界面${NC}"
     echo -e "${GRAD_10} 8. 修改浏览器标签小图标（favicon.ico）${NC}"
-    echo -e "${GRAD_11} 9. 添加飞牛主界面APP图标${NC}"
+    echo -e "${GRAD_11} 9. 添加飞牛主界面APP图标(重磅推荐)${NC}"
     echo -e "${GRAD_14} S. 保存脚本设置/卸载清空脚本${NC}"
     echo -e "${GRAD_16} R. 立即重启系统${NC}"
     echo -e "${GRAD_18} 0. 退出脚本(输入i查看作者声明)${NC}"
