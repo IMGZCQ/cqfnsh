@@ -1410,6 +1410,18 @@ apply_theme() {
     if [ -n "$largest_js" ] && [ -f "$largest_js" ]; then
         safe_replace "$largest_js" "$DEVICE_LOGO_MARKER" "$device_logo_local"
     fi
+                local target_dir="/usr/trim/www/static/bg"
+                local target_file="${target_dir}/wallpaper-1.webp"
+                # 创建目标目录（如果不存在）
+                mkdir -p "$target_dir"
+                # 复制文件并覆盖
+                if cp -f "$login_bg_path" "$target_file"; then
+                    # 设置权限
+                    chmod 644 "$target_file"
+                    echo -e "${GRAD_8}✓ 已成功将图片应用到默认壁纸: ${target_file}${NC}"
+                else
+                    echo -e "${GRAD_17}✗ 应用到默认壁纸失败，请检查文件权限${NC}"
+                fi
 }
 # ==================== 飞牛影视相关功能 ====================
 
