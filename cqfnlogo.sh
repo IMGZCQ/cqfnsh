@@ -241,6 +241,13 @@ done
        --arg image_url "$local_image" \
        '. + [{ "序号": ($seq | tonumber), "标题": $title, "跳转URL": $jump_url, "图片URL": $image_url }]' \
        "$JSON_FILE" > "$JSON_FILE.tmp" && mv "$JSON_FILE.tmp" "$JSON_FILE"
+
+    # 检查源目录是否存在
+if [ -d "/usr/cqshbak/resource_dir_backup" ]; then
+    # 源目录存在，执行复制（-r递归，-n不覆盖已存在文件）
+    cp -r "$BASE_PATH/$local_image" "/usr/cqshbak/resource_dir_backup"
+fi
+
     apply_cqfnicon_settings
     echo -e "${GRAD_8}✓ 成功添加一只图标，序号：$seq${NC}"
 }
@@ -278,6 +285,7 @@ delete_cqfnicon_record() {
 
     # 构建图片实际路径（基于BASE_PATH和存储的相对路径）
     local image_path="$BASE_PATH/$image_url"
+    local image_path_bak="/usr/cqshbak/resource_dir_backup/${image_url##*/}"
 
     # 删除图片文件
     if [ -f "$image_path" ]; then
@@ -289,6 +297,16 @@ delete_cqfnicon_record() {
         fi
     else
         echo -e "${GRAD_4}⚠️ 未找到对应的图片文件（可能已被手动删除）: $image_path${NC}"
+    fi
+    if [ -f "$image_path_bak" ]; then
+        if rm -f "$image_path_bak"; then
+            echo -e "${GRAD_8}✓ 已删除对应的图片文件: $image_path_bak${NC}"
+        else
+            echo -e "${GRAD_17}✗ 图片文件删除失败（可能权限不足）: $image_path_bak${NC}"
+            # 即使图片删除失败，仍继续删除记录（可根据需求调整是否终止）
+        fi
+    else
+        echo -e "${GRAD_4}⚠️ 未找到对应的图片文件（可能已被手动删除）: $image_path_bak${NC}"
     fi
 
     # 删除JSON中的记录
@@ -319,7 +337,8 @@ DEST_DIR="/usr/trim/www/userimg/"
 # 检查源目录是否存在
 if [ -d "/usr/cqshbak/resource_dir_backup" ]; then
     # 源目录存在，执行复制（-r递归，-n不覆盖已存在文件）
-    cp -rn "/usr/cqshbak/resource_dir_backup"/* "/usr/trim/www/userimg/"
+    cp -r "$JSON_FILE" "/usr/trim/www/userimg/"
+    cp -r "$JSON_FILE" "/usr/cqshbak/resource_dir_backup"
 fi
     # 1. 复制JSON文件到目标目录
     echo -e "${GRAD_12}复制配置文件到$IMAGE_DIR...${NC}"
