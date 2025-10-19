@@ -462,6 +462,7 @@ EOF
 # cqfnicon子菜单
 show_cqfnicon_menu() {
     show_header "自定义飞牛主界面APP图标"
+    echo -e "\n${BOLD}${GRAD_4}* ${GRAD_11}图标管理已改用docker实现，更便捷更好用${GRAD_4} *${NC}\n${BOLD}${GRAD_4}* ${GRAD_11}请到飞牛论坛搜米恋泥或Github：IMGZCQ/fn-icon${GRAD_4} *${NC}\n"
     echo -e "1. 增加一只APP图标"
     echo -e "2. 删除一只APP图标"
     echo -e "3. 查询所有APP图标编号"
