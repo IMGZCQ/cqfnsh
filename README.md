@@ -86,7 +86,8 @@
 <img src="https://github.com/user-attachments/assets/a1a2874a-eb66-456e-9e8c-5bcffd973f27" />
 <img src="https://github.com/user-attachments/assets/4d4c510e-8508-442a-86d8-18c49e1ec530" />
 
-
+## Star History
+[![Star History Chart](https://api.star-history.com/svg?repos=kggzs/FN_AQ&type=date&legend=top-left)](https://www.star-history.com/#kggzs/FN_AQ&type=date&legend=top-left)
 -----------------------------------------------------------------------------------
 第一颗星星，哈哈哈
 <img width="790" height="567" alt="PixPin_2025-10-15_12-57-06" src="https://github.com/user-attachments/assets/f95106b0-8cd7-4a5c-9ea1-2cf112002edd" />
