@@ -1917,7 +1917,7 @@ clear
                 # echo -e "\n${GRAD_13} 作者声明：留着有空再写,拜拜！${NC}\n"
                 # 使用 curl 获取并输出内容
 curl -fL# ghfast.top/raw.githubusercontent.com/IMGZCQ/cqfnsh/main/README.txt -o - | sed -e '/使用方法/,$d' -e '/^$/d'
-                # echo -e "\n\n"
+             echo -e "\n\n"
                 exit 0 ;;
             *) 
                 echo -e "${GRAD_17}✗ 无效选择，请重新输入${NC}" ;;
