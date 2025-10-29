@@ -11,6 +11,10 @@
   <ul style="list-style-type: none; padding-left: 0;">
     <li style="margin-bottom: 10px; display: flex; align-items: flex-start;">
       <span style="background-color: #ffd93d; color: #856404; border-radius: 50%; width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; margin-right: 10px; flex-shrink: 0;">1</span>
+      <span>有兴趣的灵魂请加入Q群组1039270739参与讨论</span>
+    </li>
+    <li style="margin-bottom: 10px; display: flex; align-items: flex-start;">
+      <span style="background-color: #ffd93d; color: #856404; border-radius: 50%; width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; margin-right: 10px; flex-shrink: 0;">1</span>
       <span>修改后没生效可能是浏览器缓存导致，尝试清空浏览器缓存或者使用无痕模式浏览效果</span>
     </li>
     <li style="margin-bottom: 10px; display: flex; align-items: flex-start;">
