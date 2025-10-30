@@ -1728,7 +1728,8 @@ show_menu() {
     echo -e "${GRAD_12}╚═══════════════════════════════════════════╝${NC}"
     
     # 主菜单选项 - 每个选项使用独特颜色
-    echo -e "\n${BOLD}${GRAD_4}***${GRAD_11}公告:飞牛升级系统后如有不适，请执行脚本S-2重启即可！${GRAD_4}***${NC}\n"
+    echo -e "\n${BOLD}${GRAD_4}***${GRAD_11}公告:飞牛0.9.35版已经全面封锁脚本，在此感谢大家使用！${GRAD_4}***${NC}\n"
+    echo -e "${BOLD}${GRAD_4}***${GRAD_11}欢迎有兴趣的朋友加入交流群：1039270739${GRAD_4}***${NC}\n"
     echo -e "${GRAD_3} 1. 选择预设主题（小白推荐）${NC}"
     echo -e "${GRAD_4} 2. 修改登录界面背景图片${NC}"
     echo -e "${GRAD_5} 3. 修改设备信息logo图片${NC}"
@@ -1917,7 +1918,6 @@ clear
                 # echo -e "\n${GRAD_13} 作者声明：留着有空再写,拜拜！${NC}\n"
                 # 使用 curl 获取并输出内容
 curl -fL# ghfast.top/raw.githubusercontent.com/IMGZCQ/cqfnsh/main/README.txt -o - | sed -e '/使用方法/,$d' -e '/^$/d'
-             echo -e "\n\n"
                 exit 0 ;;
             *) 
                 echo -e "${GRAD_17}✗ 无效选择，请重新输入${NC}" ;;
