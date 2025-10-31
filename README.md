@@ -32,6 +32,12 @@
 
 <div style="background-color: #d1fae5; border-radius: 10px; padding: 20px; margin-bottom: 20px;">
   <div style="margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px dashed #6ee7b7;">
+    <h4 style="color: #065f46; margin-top: 0; margin-bottom: 10px;">2025.11.01 v1.35</h4>
+    <ul>
+      <li style="color: #065f46; margin-bottom: 5px;">⚠️ 适配飞牛0.9.35版！</li>
+    </ul>
+  </div>
+  <div style="margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px dashed #6ee7b7;">
     <h4 style="color: #065f46; margin-top: 0; margin-bottom: 10px;">2025.10.16 v1.32</h4>
     <ul>
       <li style="color: #065f46; margin-bottom: 5px;">✨ 优化飞牛APP图标功能完美适配新版</li>
