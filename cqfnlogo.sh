@@ -781,25 +781,6 @@ todo_www_mount() {
     
     echo -e "${GRAD_12}正在配置开机自动挂载服务...${NC}"
     
-    # 检查并卸载所有已存在的挂载，确保只有一条mount记录
-    echo -e "${GRAD_4}⚠️ 检查并卸载已存在的挂载...${NC}"
-    if mount | grep -q "$MOUNT_POINT"; then
-        echo -e "${GRAD_12}发现已存在的挂载，正在卸载...${NC}"
-        if umount "$MOUNT_POINT"; then
-            echo -e "${GRAD_8}✓ 已成功卸载现有挂载${NC}"
-        else
-            echo -e "${GRAD_17}✗ 卸载失败，尝试强制卸载...${NC}"
-            if umount -f "$MOUNT_POINT"; then
-                echo -e "${GRAD_8}✓ 已成功强制卸载现有挂载${NC}"
-            else
-                echo -e "${GRAD_17}✗ 强制卸载也失败${NC}"
-                return 1
-            fi
-        fi
-    else
-        echo -e "${GRAD_4}⚠️ 未发现已存在的挂载${NC}"
-    fi
-    
     # 创建服务文件内容 - 延时100秒后再卸载挂载，确保只有一条mount记录
     cat << EOF > "$SERVICE_FILE"
 [Unit]
@@ -830,21 +811,6 @@ EOF
     else
         echo -e "${GRAD_17}✗ 服务启用失败${NC}"
         return 1
-    fi
-    
-    # 立即启动服务
-    if systemctl start www-mount.service; then
-        echo -e "${GRAD_8}✓ 服务启动成功，挂载已生效${NC}"
-        echo -e "${GRAD_4}⚠️ 重启后将自动执行挂载操作${NC}"
-    else
-        echo -e "${GRAD_17}✗ 服务启动失败${NC}"
-        # 尝试直接执行挂载命令
-        echo -e "${GRAD_4}⚠️ 尝试直接执行挂载命令...${NC}"
-        if mount -o bind "$SOURCE_DIR" "$MOUNT_POINT"; then
-            echo -e "${GRAD_8}✓ 直接挂载成功${NC}"
-        else
-            echo -e "${GRAD_17}✗ 直接挂载失败${NC}"
-        fi
     fi
     
     # 显示当前挂载状态
@@ -2007,19 +1973,13 @@ fi
 
 # 第五步：执行绑定挂载（仅一次）
 
-echo "⏱️  等待5秒后开始挂载操作..."
+echo "⏱️  等待3秒后开始挂载操作..."
 # 在SOURCE_DIR中创建测试文件
-echo "📄 在 $SOURCE_DIR 创建测试文件 123.txt"
-touch "$SOURCE_DIR/123.txt"
-sleep 5
+sleep 3
 echo "📦 开始绑定挂载 $SOURCE_DIR 到 $MOUNT_POINT..."
 if mount -o bind "$SOURCE_DIR" "$MOUNT_POINT"; then
     echo "✅ 绑定挂载成功！当前状态："
-    findmnt "$MOUNT_POINT"
-    # 删除SOURCE_DIR中的测试文件
-    echo "🗑️  删除 $SOURCE_DIR/123.txt 测试文件"
-    rm -f "$SOURCE_DIR/123.txt"
-    
+    findmnt "$MOUNT_POINT"    
 else
     echo "❌ 绑定挂载失败，请检查源路径或权限"
     exit 1
