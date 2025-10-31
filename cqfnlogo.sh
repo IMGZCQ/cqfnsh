@@ -462,10 +462,10 @@ EOF
 # cqfnicon子菜单
 show_cqfnicon_menu() {
     show_header "自定义飞牛主界面APP图标"
-    echo -e "\n${BOLD}${GRAD_4}* ${GRAD_11}图标管理已改用docker实现，更便捷更好用${GRAD_4} *${NC}\n${BOLD}${GRAD_4}* ${GRAD_11}请到飞牛论坛搜米恋泥或Github：IMGZCQ/fn-icon${GRAD_4} *${NC}\n"
-    echo -e "1. 增加一只APP图标"
-    echo -e "2. 删除一只APP图标"
-    echo -e "3. 查询所有APP图标编号"
+    echo -e "\n${BOLD}${GRAD_4}* ${GRAD_11}图标管理已改单独工具，更便捷更好用${GRAD_4} *${NC}\n${BOLD}${GRAD_4}* ${GRAD_11}请到飞牛论坛搜米恋泥或Github：IMGZCQ/fndesk${GRAD_4} *${NC}\n"
+    # echo -e "1. 增加一只APP图标"
+    # echo -e "2. 删除一只APP图标"
+    # echo -e "3. 查询所有APP图标编号"
     echo -e "0. 返回主菜单"
     show_separator
 }
@@ -473,27 +473,26 @@ show_cqfnicon_menu() {
 # 执行cqfnicon功能
 run_cqfnicon() {
     # 确保目录存在
-    ensure_cqfnicon_dir
-    
+    # ensure_cqfnicon_dir
     # 检查依赖
-    if ! check_cqfnicon_dependencies; then
-        return 0
-    fi
+    # if ! check_cqfnicon_dependencies; then
+    #     return 0
+    # fi
     
     # 初始化JSON
-    if ! init_cqfnicon_json; then
-        return 0
-    fi
-    apply_cqfnicon_settings
+    # if ! init_cqfnicon_json; then
+    #     return 0
+    # fi
+    # apply_cqfnicon_settings
     while true; do
         show_cqfnicon_menu
         read -p "→ 请选择操作 (0-4): " choice
 
         case $choice in
-            1) add_cqfnicon_record ;;
-            2) delete_cqfnicon_record ;;
-            3) query_cqfnicon_records ;;
-            4) apply_cqfnicon_settings ;;
+            # 1) add_cqfnicon_record ;;
+            # 2) delete_cqfnicon_record ;;
+            # 3) query_cqfnicon_records ;;
+            # 4) apply_cqfnicon_settings ;;
             0) break ;;
             *) echo -e "${GRAD_17}✗ 无效的选择，请输入0-3之间的数字${NC}" ;;
         esac
@@ -771,7 +770,159 @@ EOF
     echo -e "${GRAD_8}✓ 服务名称: cqshbak.service${NC}"
 }
 
-# 移除启动项中的持久化处理
+# 设置开机自动执行mount操作
+todo_www_mount() {
+    # 定义绑定挂载的源路径和目标挂载点
+    SOURCE_DIR="/usr/trim/share/.restore/tow"
+    MOUNT_POINT="/usr/trim/www"
+    
+    # 创建systemd服务文件
+    SERVICE_FILE="/etc/systemd/system/www-mount.service"
+    
+    echo -e "${GRAD_12}正在配置开机自动挂载服务...${NC}"
+    
+    # 检查并卸载所有已存在的挂载，确保只有一条mount记录
+    echo -e "${GRAD_4}⚠️ 检查并卸载已存在的挂载...${NC}"
+    if mount | grep -q "$MOUNT_POINT"; then
+        echo -e "${GRAD_12}发现已存在的挂载，正在卸载...${NC}"
+        if umount "$MOUNT_POINT"; then
+            echo -e "${GRAD_8}✓ 已成功卸载现有挂载${NC}"
+        else
+            echo -e "${GRAD_17}✗ 卸载失败，尝试强制卸载...${NC}"
+            if umount -f "$MOUNT_POINT"; then
+                echo -e "${GRAD_8}✓ 已成功强制卸载现有挂载${NC}"
+            else
+                echo -e "${GRAD_17}✗ 强制卸载也失败${NC}"
+                return 1
+            fi
+        fi
+    else
+        echo -e "${GRAD_4}⚠️ 未发现已存在的挂载${NC}"
+    fi
+    
+    # 创建服务文件内容 - 延时100秒后再卸载挂载，确保只有一条mount记录
+    cat << EOF > "$SERVICE_FILE"
+[Unit]
+Description=WWW Directory Bind Mount Service
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStartPre=/bin/sleep 180
+ExecStart=/bin/bash -c "if mount | grep -q '$MOUNT_POINT'; then umount -f '$MOUNT_POINT' 2>/dev/null; fi && mount -o bind $SOURCE_DIR $MOUNT_POINT"
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+EOF
+    
+    # 重新加载systemd配置
+    if systemctl daemon-reload; then
+        echo -e "${GRAD_8}✓ 系统服务配置重载成功${NC}"
+    else
+        echo -e "${GRAD_17}✗ 系统服务配置重载失败${NC}"
+        return 1
+    fi
+    
+    # 启用服务
+    if systemctl enable www-mount.service; then
+        echo -e "${GRAD_8}✓ 服务已设置为开机自启${NC}"
+    else
+        echo -e "${GRAD_17}✗ 服务启用失败${NC}"
+        return 1
+    fi
+    
+    # 立即启动服务
+    if systemctl start www-mount.service; then
+        echo -e "${GRAD_8}✓ 服务启动成功，挂载已生效${NC}"
+        echo -e "${GRAD_4}⚠️ 重启后将自动执行挂载操作${NC}"
+    else
+        echo -e "${GRAD_17}✗ 服务启动失败${NC}"
+        # 尝试直接执行挂载命令
+        echo -e "${GRAD_4}⚠️ 尝试直接执行挂载命令...${NC}"
+        if mount -o bind "$SOURCE_DIR" "$MOUNT_POINT"; then
+            echo -e "${GRAD_8}✓ 直接挂载成功${NC}"
+        else
+            echo -e "${GRAD_17}✗ 直接挂载失败${NC}"
+        fi
+    fi
+    
+    # 显示当前挂载状态
+    echo -e "${GRAD_12}当前挂载状态:${NC}"
+    findmnt "$MOUNT_POINT"
+    return 0
+}
+
+# 取消开机自动mount操作并立即umount
+todo_www_umount() {
+    # 定义目标挂载点
+    MOUNT_POINT="/usr/trim/www"
+    SERVICE_FILE="/etc/systemd/system/www-mount.service"
+    
+    echo -e "${GRAD_12}正在取消开机自动挂载并立即卸载...${NC}"
+    
+    # 检查并停止服务
+    if systemctl is-active --quiet www-mount.service; then
+        if systemctl stop www-mount.service; then
+            echo -e "${GRAD_8}✓ 服务已停止${NC}"
+        else
+            echo -e "${GRAD_17}✗ 服务停止失败${NC}"
+        fi
+    else
+        echo -e "${GRAD_4}⚠️ 服务未运行，跳过停止步骤${NC}"
+    fi
+    
+    # 禁用服务
+    if systemctl is-enabled --quiet www-mount.service; then
+        if systemctl disable www-mount.service; then
+            echo -e "${GRAD_8}✓ 服务已禁用，不再开机自启${NC}"
+        else
+            echo -e "${GRAD_17}✗ 服务禁用失败${NC}"
+        fi
+    else
+        echo -e "${GRAD_4}⚠️ 服务未启用，跳过禁用步骤${NC}"
+    fi
+    
+    # 删除服务文件
+    if [ -f "$SERVICE_FILE" ]; then
+        if rm -f "$SERVICE_FILE"; then
+            echo -e "${GRAD_8}✓ 服务文件已删除${NC}"
+            # 重新加载systemd配置
+            systemctl daemon-reload
+        else
+            echo -e "${GRAD_17}✗ 服务文件删除失败${NC}"
+        fi
+    else
+        echo -e "${GRAD_4}⚠️ 服务文件不存在，跳过删除步骤${NC}"
+    fi
+    
+    # 立即执行卸载操作
+    echo -e "${GRAD_12}正在执行卸载操作...${NC}"
+    if findmnt "$MOUNT_POINT" >/dev/null 2>&1; then
+        # 尝试常规卸载
+        if umount "$MOUNT_POINT"; then
+            echo -e "${GRAD_8}✓ 常规卸载成功${NC}"
+        else
+            # 尝试懒卸载
+            echo -e "${GRAD_4}⚠️ 常规卸载失败，尝试懒卸载...${NC}"
+            if umount -l "$MOUNT_POINT"; then
+                echo -e "${GRAD_8}✓ 懒卸载成功${NC}"
+            else
+                echo -e "${GRAD_17}✗ 卸载失败，请手动处理${NC}"
+            fi
+        fi
+        
+        # 显示卸载后的状态
+        echo -e "${GRAD_12}卸载后的挂载状态:${NC}"
+        findmnt "$MOUNT_POINT" || echo -e "${GRAD_8}✓ 挂载已移除${NC}"
+    else
+        echo -e "${GRAD_4}⚠️ $MOUNT_POINT 当前未挂载，跳过卸载步骤${NC}"
+    fi
+    
+    return 0
+}
+
+# 移除启动项中的持久化处理（保留但已被新函数替代）
 remove_persistence() {
     # 停止并禁用服务
     if systemctl is-active --quiet cqshbak.service; then
@@ -1707,8 +1858,8 @@ show_submenu() {
 # 持久化处理菜单
 show_persistence_menu() {
     show_header "保存脚本设置/卸载清空脚本"
-    echo -e "1. 是，重启后保持个性化设置（系统启动后100秒生效）"
-    echo -e "2. 否，重启后还原飞牛官方设置（卸载清空脚本文件）"
+    echo -e "1. 是，重启后保持个性化设置（系统启动后30秒生效）"
+    echo -e "2. 否，立即还原飞牛官方设置"
     echo -e "0. 返回主菜单\n"
     echo -e "${GRAD_4}注意！ 如果系统更新后或遇到任何问题，请选择2然后重启一次即可${NC}"
     show_separator
@@ -1723,12 +1874,12 @@ show_menu() {
 
     echo -e "\n${GRAD_12}╔═══════════════════════════════════════════╗${NC}"
     echo -e "${GRAD_12}║                                           ${GRAD_12}║${NC}"
-    echo -e "${GRAD_12}║${GRAD_15}    ${BOLD}${BLINK}-- 肥牛定制化脚本v1.32 by 米恋泥 --${NO_EFFECT}    ${GRAD_12}║${NC}"
+    echo -e "${GRAD_12}║${GRAD_15}    ${BOLD}${BLINK}-- 肥牛定制化脚本v1.35 by 米恋泥 --${NO_EFFECT}    ${GRAD_12}║${NC}"
     echo -e "${GRAD_12}║                                           ${GRAD_12}║${NC}"
     echo -e "${GRAD_12}╚═══════════════════════════════════════════╝${NC}"
     
     # 主菜单选项 - 每个选项使用独特颜色
-    echo -e "\n${BOLD}${GRAD_4}***${GRAD_11}公告:飞牛0.9.35版已经全面封锁脚本，在此感谢大家使用！${GRAD_4}***${NC}\n"
+    echo -e "\n${BOLD}${GRAD_4}***${GRAD_11}公告:飞牛0.9.35版已经适配可用，在此感谢大家使用！${GRAD_4}***${NC}\n"
     echo -e "${BOLD}${GRAD_4}***${GRAD_11}欢迎有兴趣的朋友加入交流群：1039270739${GRAD_4}***${NC}\n"
     echo -e "${GRAD_3} 1. 选择预设主题（小白推荐）${NC}"
     echo -e "${GRAD_4} 2. 修改登录界面背景图片${NC}"
@@ -1747,9 +1898,133 @@ show_menu() {
 
 # ==================== 主执行流程 ====================
 
+# 检查系统启动时间是否超过指定分钟数
+check_system_uptime() {
+    local required_minutes=$1
+    echo "⏰ 检查系统启动时间是否超过 $required_minutes 分钟..."
+    
+    # 获取系统运行时间（以秒为单位）
+    local uptime_seconds=$(awk '{print $1}' /proc/uptime | cut -d. -f1)
+    local required_seconds=$((required_minutes * 60))
+    
+    if [ "$uptime_seconds" -lt "$required_seconds" ]; then
+        local remaining_seconds=$((required_seconds - uptime_seconds))
+        echo "⚠️  系统启动时间不足 $required_minutes 分钟，需要等待 $remaining_seconds 秒..."
+        
+        # 显示动态倒计时
+        local countdown=$remaining_seconds
+        while [ $countdown -gt 0 ]; do
+            # 使用printf和回车符实现动态更新
+            printf "\r⏳ 剩余等待时间: %d 秒" $countdown
+            sleep 1
+            countdown=$((countdown - 1))
+        done
+        printf "\n"
+        
+        echo "✅ 系统启动时间已满足要求，继续执行脚本。"
+    else
+        echo "✅ 系统启动时间已满足要求，继续执行脚本。"
+    fi
+}
+
 main() {
     # 初始化检查
     check_root
+    
+    # 确保系统启动至少3分钟后才执行脚本
+    check_system_uptime 3
+    
+# 定义绑定挂载的源路径和目标挂载点
+SOURCE_DIR="/usr/trim/share/.restore/tow"
+MOUNT_POINT="/usr/trim/www"
+WWW_INDEX="$MOUNT_POINT/index.html"
+RESTORE_INDEX="$SOURCE_DIR/index.html"
+
+# 第一步：检测/usr/trim/www/index.html是否存在，等待1秒尝试5次
+echo "🔍 检测 $WWW_INDEX 是否存在..."
+MAX_ATTEMPTS=5
+attempt=1
+while [ $attempt -le $MAX_ATTEMPTS ]; do
+    if [ -f "$WWW_INDEX" ]; then
+        echo "✅ 检测成功：$WWW_INDEX 存在（第 $attempt 次尝试）"
+        break
+    else
+        echo "⚠️ 第 $attempt 次检测失败：$WWW_INDEX 不存在，等待1秒后重试..."
+        sleep 1
+        attempt=$((attempt + 1))
+    fi
+done
+
+# 如果5次检测都失败，则退出脚本
+if [ $attempt -gt $MAX_ATTEMPTS ]; then
+    echo "❌ 检测失败：在5次尝试后仍然无法找到 $WWW_INDEX"
+    echo "❌ 脚本将退出，请确保文件存在后再尝试"
+    exit 1
+fi
+
+# 第二步：检查/usr/trim/share/.restore/tow/index.html是否存在，如果不存在则复制文件
+echo "🔍 检测 $RESTORE_INDEX 是否存在..."
+if [ ! -f "$RESTORE_INDEX" ]; then
+    echo "⚠️ $RESTORE_INDEX 不存在，开始复制 $MOUNT_POINT 中的所有文件..."
+    
+    # 确保目标目录存在
+    mkdir -p "$SOURCE_DIR"
+    
+    # 复制所有文件
+    echo "📂 正在将 $MOUNT_POINT/* 复制到 $SOURCE_DIR..."
+    if cp -r "$MOUNT_POINT"/* "$SOURCE_DIR/"; then
+        echo "✅ 文件复制成功！"
+    else
+        echo "❌ 文件复制失败，请检查权限或磁盘空间"
+        exit 1
+    fi
+else
+    echo "✅ $RESTORE_INDEX 已存在，跳过复制步骤"
+fi
+
+# 第三步：清理所有现有挂载（包括重复的绑定挂载）
+echo "🔍 检查并清理 $MOUNT_POINT 的现有挂载..."
+while findmnt "$MOUNT_POINT" >/dev/null 2>&1; do
+    echo "正在卸载 $MOUNT_POINT..."
+    if umount "$MOUNT_POINT"; then
+        echo "✅ 常规卸载成功"
+    else
+        echo "⚠️ 常规卸载失败，尝试懒卸载..."
+        if umount -l "$MOUNT_POINT"; then
+            echo "✅ 懒卸载成功"
+        else
+            echo "❌ 卸载失败，请手动处理"
+            exit 1
+        fi
+    fi
+done
+
+# 第四步：确认已完全卸载
+if findmnt "$MOUNT_POINT" >/dev/null 2>&1; then
+    echo "❌ 仍有残留挂载，无法继续"
+    exit 1
+fi
+
+# 第五步：执行绑定挂载（仅一次）
+
+echo "⏱️  等待5秒后开始挂载操作..."
+# 在SOURCE_DIR中创建测试文件
+echo "📄 在 $SOURCE_DIR 创建测试文件 123.txt"
+touch "$SOURCE_DIR/123.txt"
+sleep 5
+echo "📦 开始绑定挂载 $SOURCE_DIR 到 $MOUNT_POINT..."
+if mount -o bind "$SOURCE_DIR" "$MOUNT_POINT"; then
+    echo "✅ 绑定挂载成功！当前状态："
+    findmnt "$MOUNT_POINT"
+    # 删除SOURCE_DIR中的测试文件
+    echo "🗑️  删除 $SOURCE_DIR/123.txt 测试文件"
+    rm -f "$SOURCE_DIR/123.txt"
+    
+else
+    echo "❌ 绑定挂载失败，请检查源路径或权限"
+    exit 1
+fi
+ ##################################################################################################   
     check_resource_dir
     init_backup_dir  # 初始化备份目录
     
@@ -1757,7 +2032,7 @@ main() {
         echo -e "${GRAD_17}✗ 错误: 目标目录不存在 $TARGET_DIR${NC}" >&2
         exit 1
     fi
-clear
+ clear  ##########################################################################################################################################
     while true; do     
         show_menu
         read -p "→ 请选择主菜单操作: " main_choice
@@ -1904,8 +2179,8 @@ clear
                     read -p "→ 选择是否保存脚本设置 (0-2): " persistence_choice
                     
                     case "$persistence_choice" in
-                        1) add_persistence; break ;;
-                        2) remove_persistence; break ;;
+                        1) todo_www_mount; break ;;
+                        2) todo_www_umount; break ;;
                         0) break ;;
                         *) echo -e "${GRAD_17}✗ 无效选择，请重新输入${NC}" ;;
                     esac
