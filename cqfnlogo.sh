@@ -879,6 +879,8 @@ todo_www_umount() {
         fi
         
         # 显示卸载后的状态
+        umount /usr/trim/www
+        umount /usr/trim/www
         echo -e "${GRAD_12}卸载后的挂载状态:${NC}"
         findmnt "$MOUNT_POINT" || echo -e "${GRAD_8}✓ 挂载已移除${NC}"
     else
@@ -1824,8 +1826,8 @@ show_submenu() {
 # 持久化处理菜单
 show_persistence_menu() {
     show_header "保存脚本设置/卸载清空脚本"
-    echo -e "1. 是，重启后保持个性化设置（系统启动后180秒生效）"
-    echo -e "2. 否，立即还原飞牛官方设置"
+    echo -e "1. 是，重启后保持个性化设置（此项已失效）"
+    echo -e "2. 否，立即还原飞牛官方设置（选此卸载脚本）"
     echo -e "0. 返回主菜单\n"
     echo -e "${GRAD_4}注意！ 如果系统更新后或遇到任何问题，请选择2然后重启一次即可${NC}"
     show_separator
@@ -1840,12 +1842,13 @@ show_menu() {
 
     echo -e "\n${GRAD_12}╔═══════════════════════════════════════════╗${NC}"
     echo -e "${GRAD_12}║                                           ${GRAD_12}║${NC}"
-    echo -e "${GRAD_12}║${GRAD_15}    ${BOLD}${BLINK}-- 肥牛定制化脚本v1.35 by 米恋泥 --${NO_EFFECT}    ${GRAD_12}║${NC}"
+    echo -e "${GRAD_12}║${GRAD_15}    ${BOLD}${BLINK}-- 肥牛定制化脚本v1.36 by 米恋泥 --${NO_EFFECT}    ${GRAD_12}║${NC}"
     echo -e "${GRAD_12}║                                           ${GRAD_12}║${NC}"
     echo -e "${GRAD_12}╚═══════════════════════════════════════════╝${NC}"
     
     # 主菜单选项 - 每个选项使用独特颜色
-    echo -e "\n${BOLD}${GRAD_4}***${GRAD_11}公告:飞牛0.9.35版已经适配可用，在此感谢大家使用！${GRAD_4}***${NC}\n"
+    echo -e "\n${BOLD}${GRAD_4}***${GRAD_11}公告:脚本已停用，功能整合到：飞牛桌面管理工具！${GRAD_4}***${NC}\n"
+    echo -e "${BOLD}${GRAD_4}***${GRAD_11}请移步：GitHub：IMGZCQ/fndesk 或 飞牛论坛${GRAD_4}***${NC}\n"
     echo -e "${BOLD}${GRAD_4}***${GRAD_11}欢迎有兴趣的朋友加入交流群：1039270739${GRAD_4}***${NC}\n"
     echo -e "${GRAD_3} 1. 选择预设主题（小白推荐）${NC}"
     echo -e "${GRAD_4} 2. 修改登录界面背景图片${NC}"
@@ -1899,6 +1902,7 @@ main() {
     
     # 确保系统启动至少3分钟后才执行脚本
     check_system_uptime 3
+ if false; then
     
 # 定义绑定挂载的源路径和目标挂载点
 SOURCE_DIR="/usr/trim/share/.restore/tow"
@@ -1983,6 +1987,7 @@ if mount -o bind "$SOURCE_DIR" "$MOUNT_POINT"; then
 else
     echo "❌ 绑定挂载失败，请检查源路径或权限"
     exit 1
+fi
 fi
  ##################################################################################################   
     check_resource_dir
@@ -2139,7 +2144,7 @@ fi
                     read -p "→ 选择是否保存脚本设置 (0-2): " persistence_choice
                     
                     case "$persistence_choice" in
-                        1) todo_www_mount; break ;;
+                       # 1) todo_www_mount; break ;;
                         2) todo_www_umount; break ;;
                         0) break ;;
                         *) echo -e "${GRAD_17}✗ 无效选择，请重新输入${NC}" ;;
