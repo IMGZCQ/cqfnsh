@@ -1,7 +1,7 @@
 # <span style="color:#f94144">cqfnsh</span> 飞牛个性化定制工具
 
 <div style="background: linear-gradient(135deg, #f953c6 0%, #b91d73 100%); padding: 20px; border-radius: 10px; color: white; margin: 20px 0;">
-  <h2 style="margin-top: 0;">顶置 脚本已停用，功能将整合到：https://github.com/IMGZCQ/fndesk </h2>
+  <h2 style="margin-top: 0;">顶置 脚本已停用，功能将整合到：[https://github.com/IMGZCQ/fndesk](https://github.com/IMGZCQ/fndesk) </h2>
   <h2 style="margin-top: 0; text-align: center;">我的飞牛我做主</h2>
   <p style="font-size: 18px; margin-bottom: 0; text-align: center;">飞牛各项个性化定制，打造专属于你的飞牛体验</p>
 </div>
